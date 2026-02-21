@@ -1823,47 +1823,47 @@ io.on('connection', (socket) => {
         let cost, itemData;
         switch (itemId) {
             case "normalGlove":
-                cost = 500;
+                cost = 0;
                 itemData = {
                     id: 'normalGlove'
                 };
                 break;
             case 'antidote':
-                cost = 200;
+                cost = 0;
                 itemData = {
                     id: 'antidote'
                 };
                 break;
                 // NOVO: Caso para o Magic Antidote
             case 'magicAntidote':
-                cost = 3000;
+                cost = 0;
                 itemData = {
                     id: 'magicAntidote'
                 };
                 break;
                 // NOVO: Caso para o Magic Egg
             case 'magicEgg':
-                cost = 2000;
+                cost = 0;
                 itemData = {
                     id: 'magicEgg'
                 };
                 break;
             case 'fishingRod':
-                cost = 1000;
+                cost = 0;
                 itemData = {
                     id: 'fishingRod',
                     uses: 3
                 };
                 break;
             case 'bow':
-                cost = 2000;
+                cost = 0;
                 itemData = {
                     id: 'bow',
                     ammo: 200
                 };
                 break;
             case 'blowdart': // NOVO: Caso para o Blowdart
-                cost = 2000;
+                cost = 0;
                 itemData = {
                     id: 'blowdart',
                     cooldownUntil: 0
@@ -1884,50 +1884,50 @@ io.on('connection', (socket) => {
         let cost, itemData;
         switch (itemId) {
             case 'inventoryUpgrade':
-                cost = 20000;
+                cost = 0;
                 break;
             case 'skateboard':
-                cost = 10000;
+                cost = 0;
                 itemData = { ...gameState.skateboard,
                     ownerId: player.id
                 };
                 break;
             case 'drone':
-                cost = 2000;
+                cost = 0;
                 itemData = {
                     id: 'drone',
                     ammo: DRONE_MAX_AMMO
                 };
                 break;
             case 'invisibilityCloak':
-                cost = 10000;
+                cost = 0;
                 itemData = {
                     id: 'invisibilityCloak',
                     active: false
                 };
                 break;
             case "gravityGlove":
-                cost = 5000;
+                cost = 0;
                 itemData = {
                     id: 'gravityGlove',
                     uses: 2
                 };
                 break;
             case 'portals':
-                cost = 3000;
+                cost = 0;
                 itemData = {
                     id: 'portals'
                 };
                 break;
             case 'cannon':
-                cost = 5000;
+                cost =0;
                 itemData = {
                     id: 'cannon',
                     cooldownUntil: 0
                 };
                 break;
             case 'angelWings':
-                cost = 30000;
+                cost = 0;
                 itemData = {
                     id: 'angelWings',
                     cooldownUntil: 0

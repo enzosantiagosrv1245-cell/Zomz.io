@@ -1899,12 +1899,12 @@ function getZombieItemsLayout() {
         id: 'trap',
         text: 'Trap',
         description: 'Place a trap to immobilize humans',
-        price: 200
+        price: 0
     }, {
         id: 'mine',
         text: 'Explosive Mine',
         description: 'Place a mine that explodes on contact',
-        price: 200
+        price: 0
     }];
     const menuWidth = 1500,
         menuHeight = 900;
@@ -1934,43 +1934,43 @@ function getItemsLayout() {
         id: 'normalGlove',
         text: 'GLOVE',
         description: "Pushes objects with more force",
-        price: 500,
+        price: 0,
         sprite: GloveSprite
     }, {
         id: 'antidote',
         text: 'ANTIDOTE',
         description: 'Reduces chance of being zombie',
-        price: 200,
+        price: 0,
         sprite: antidoteSprite
     }, {
         id: 'magicAntidote',
         text: 'MAGIC ANTIDOTE',
         description: 'Reduces chance of being zombie',
-        price: 3000,
+        price: 0,
         sprite: magicAntidoteSprite
     }, {
         id: 'magicEgg',
         text: 'EGG',
         description: 'Gain 20% more gems',
-        price: 2000,
+        price: 0,
         sprite: magicEggSprite
     }, {
         id: 'fishingRod',
         text: 'FISHING ROD',
         description: 'Try your luck fishing in the sea',
-        price: 1000,
+        price: 0,
         sprite: fishingRodSprite
     }, {
         id: 'bow',
         text: 'BOW',
         description: 'Shoot arrows to slow enemies',
-        price: 2000,
+        price: 0,
         sprite: bowSprite
     }, {
         id: 'blowdart',
         text: 'BLOWDART',
         description: 'Shoot darts to slow zombies',
-        price: 2000,
+        price: 0,
         sprite: blowdartSprite
     }];
     const menuWidth = 1500,
@@ -2001,49 +2001,49 @@ function getRareItemsLayout() {
         id: 'inventoryUpgrade',
         text: 'SLOT',
         description: 'Unlocks a second slot',
-        price: 20000,
+        price: 0,
         sprite: inventoryUpgradeSprite
     }, {
         id: 'skateboard',
         text: 'SKATEBOARD',
         description: 'Move faster',
-        price: 10000,
+        price: 0,
         sprite: skateboardSprite
     }, {
         id: 'drone',
         text: 'DRONE',
         description: 'Throws grenades',
-        price: 2000,
+        price: 0,
         sprite: droneSprite
     }, {
         id: 'invisibilityCloak',
         text: 'CLOAK',
         description: 'Become invisible',
-        price: 10000,
+        price: 0,
         sprite: invisibilityCloakSprite
     }, {
         id: 'gravityGlove',
         text: 'GRAVITY GLOVE',
         description: 'Pick up (E) and drop (G) objects',
-        price: 5000,
+        price: 0,
         sprite: gravityGloveSprite
     }, {
         id: 'portals',
         text: 'PORTALS',
         description: 'Place 2 portals for instant travel',
-        price: 3000,
+        price: 0,
         sprite: portalsSprite
     }, {
         id: 'cannon',
         text: 'CANNON',
         description: 'Fires a powerful cannonball',
-        price: 5000,
+        price: 0,
         sprite: cannonSprite
     }, {
         id: 'angelWings',
         text: 'ANGEL WINGS',
         description: 'Become an angel',
-        price: 30000,
+        price: 0,
         sprite: angelWingsSprite
     }];
     const menuWidth = 1500,
