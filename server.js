@@ -140,15 +140,15 @@ const RUNNING_TENNIS_SPEED_BOOST = 5;
 const SINKING_DURATION = 3000;
 
 const FUNCTION_COSTS = {
-    athlete: 500,
-    engineer: 500,
-    spy: 500,
-    butterfly: 1000,
-    rhinoceros: 1000,
+    athlete: 1,
+    engineer: 1,
+    spy: 1,
+    butterfly: 1,
+    rhinoceros: 1,
 };
 const ZOMBIE_ABILITY_COSTS = {
-    trap: 50,
-    mine: 50
+    trap: 1,
+    mine: 1
 };
 
 // Categorias de Colisão (RESTAURADO AO ORIGINAL)
