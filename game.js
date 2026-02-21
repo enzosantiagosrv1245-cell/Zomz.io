@@ -1934,43 +1934,43 @@ function getItemsLayout() {
         id: 'normalGlove',
         text: 'GLOVE',
         description: "Pushes objects with more force",
-        price: 0,
+        price: 1,
         sprite: GloveSprite
     }, {
         id: 'antidote',
         text: 'ANTIDOTE',
         description: 'Reduces chance of being zombie',
-        price: 0,
+        price: 1,
         sprite: antidoteSprite
     }, {
         id: 'magicAntidote',
         text: 'MAGIC ANTIDOTE',
         description: 'Reduces chance of being zombie',
-        price: 0,
+        price: 1,
         sprite: magicAntidoteSprite
     }, {
         id: 'magicEgg',
         text: 'EGG',
         description: 'Gain 20% more gems',
-        price: 0,
+        price: 1,
         sprite: magicEggSprite
     }, {
         id: 'fishingRod',
         text: 'FISHING ROD',
         description: 'Try your luck fishing in the sea',
-        price: 0,
+        price: 1,
         sprite: fishingRodSprite
     }, {
         id: 'bow',
         text: 'BOW',
         description: 'Shoot arrows to slow enemies',
-        price: 0,
+        price: 1,
         sprite: bowSprite
     }, {
         id: 'blowdart',
         text: 'BLOWDART',
         description: 'Shoot darts to slow zombies',
-        price: 0,
+        price: 1,
         sprite: blowdartSprite
     }];
     const menuWidth = 1500,
@@ -2001,49 +2001,49 @@ function getRareItemsLayout() {
         id: 'inventoryUpgrade',
         text: 'SLOT',
         description: 'Unlocks a second slot',
-        price: 0,
+        price: 1,
         sprite: inventoryUpgradeSprite
     }, {
         id: 'skateboard',
         text: 'SKATEBOARD',
         description: 'Move faster',
-        price: 0,
+        price: 1,
         sprite: skateboardSprite
     }, {
         id: 'drone',
         text: 'DRONE',
         description: 'Throws grenades',
-        price: 0,
+        price: 1,
         sprite: droneSprite
     }, {
         id: 'invisibilityCloak',
         text: 'CLOAK',
         description: 'Become invisible',
-        price: 0,
+        price: 1,
         sprite: invisibilityCloakSprite
     }, {
         id: 'gravityGlove',
         text: 'GRAVITY GLOVE',
         description: 'Pick up (E) and drop (G) objects',
-        price: 0,
+        price: 1,
         sprite: gravityGloveSprite
     }, {
         id: 'portals',
         text: 'PORTALS',
         description: 'Place 2 portals for instant travel',
-        price: 0,
+        price: 1,
         sprite: portalsSprite
     }, {
         id: 'cannon',
         text: 'CANNON',
         description: 'Fires a powerful cannonball',
-        price: 0,
+        price: 1,
         sprite: cannonSprite
     }, {
         id: 'angelWings',
         text: 'ANGEL WINGS',
         description: 'Become an angel',
-        price: 0,
+        price: 1,
         sprite: angelWingsSprite
     }];
     const menuWidth = 1500,
