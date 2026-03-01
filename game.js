@@ -188,8 +188,6 @@ socket.on('newMessage', (message) => {
 
 window.addEventListener('keydown', function(event) {
     const key = event.key.toLowerCase();
-    const me = gameState.players[myId];
-    if (!me) return; // ADICIONE ESSA LINHA
     
     if (key === 'enter') {
         event.preventDefault();
@@ -213,6 +211,8 @@ window.addEventListener('keydown', function(event) {
         }
     }
 
+    const me = gameState.players[myId];
+    if (!me) return; // AQUI, depois do enter/escape
     if (isChatting) {
         return;
     }
@@ -562,7 +562,8 @@ if (isMenuOpen) {
                 }
             }
         }
-    } else {
+} else {
+        const me = gameState.players[myId];
         const selectedItem = me && me.inventory && me.inventory[me.selectedSlot];
         if (selectedItem && selectedItem.id === 'drone') {
             socket.emit('playerAction', {
