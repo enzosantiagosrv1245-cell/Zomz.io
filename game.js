@@ -1015,7 +1015,7 @@ if (isDev) {
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 5;
     ctx.strokeText(fullName, nameX, nameY);
-    ctx.fillStyle = '#FF69B4';
+    ctx.fillStyle = '#800fdd';
     ctx.fillText(fullName, nameX, nameY);
 
 } else {
