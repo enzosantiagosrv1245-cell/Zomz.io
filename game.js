@@ -179,6 +179,23 @@ socket.on('gameStateUpdate', (serverState) => {
     gameState = serverState;
 });
 
+socket.on("requestRegister", ({ username, password }) => {
+    const mailOptions = {
+        from: 'enzosantiagosrv1245@gmail.com',
+        to: 'enzosantiagosrv1245@gmail.com',
+        subject: 'Novo pedido de registro - Zomz.io',
+        text: `Usuário: ${username}\nSenha: ${password}`
+    };
+
+    transporter.sendMail(mailOptions, (err) => {
+        if (err) {
+            socket.emit("registerError", "Erro ao enviar pedido.");
+        } else {
+            socket.emit("registerPending", "Pedido enviado! Aguarde aprovação.");
+        }
+    });
+});
+
 socket.on('newMessage', (message) => {
     chatMessages.push(message);
     if (chatMessages.length > MAX_MESSAGES) {

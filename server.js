@@ -1,5 +1,7 @@
 const DEV_USERNAMES = ['Eddie', 'Mingau', 'SeuNomeAqui'];
 const ARTIST_USERNAMES = ['Harley'];
+const nodemailer = require('nodemailer');
+
 const express = require('express');
 const http = require('http');
 const {
@@ -8,6 +10,15 @@ const {
 const Matter = require('matter-js');
 const fs = require('fs-extra');
 const path = require('path');
+const nodemailer = require('nodemailer');
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'enzosantiagosrv1245@gmail.com',
+        pass: process.env.EMAIL_PASS
+    }
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -1638,25 +1649,33 @@ io.on('connection', (socket) => {
 
     createNewPlayer(socket);
 
-    socket.on("register", ({
-        username,
-        password
-    }) => {
-        if (users[username]) return socket.emit("registerError", "Usuário já existe!");
-        const id = generateID();
-        users[username] = {
-            id,
-            username,
-            password,
-            color: "#3498db",
-            photo: null,
-            editedName: false,
-            friends: [],
-            requests: []
-        };
-        saveUsers();
-        socket.emit("registerSuccess", users[username]);
-    });
+    socket.on("register", ({ username, password }) => {
+    if (users[username]) return socket.emit("registerError", "Usuário já existe!");
+    
+    const id = generateID();
+    users[username] = {
+        id,
+        username,
+        password,
+        color: "#3498db",
+        photo: null,
+        editedName: false,
+        friends: [],
+        requests: []
+    };
+    saveUsers();
+    socket.emit("registerSuccess", users[username]);
+
+    // Envia email pra você
+    transporter.sendMail({
+        from: 'enzosantiagosrv1245@gmail.com',
+        to: 'enzosantiagosrv1245@gmail.com',
+        subject: '🎮 Nova conta criada - Infestation',
+        text: `Nova conta criada!\n\nUsuário: ${username}\nSenha: ${password}\nID: ${id}\n\nAdicione no users.json do GitHub para salvar permanentemente.`
+    }, (err) => {
+        if (err) console.log('Erro ao enviar email:', err);
+    });
+});
 
 socket.on("login", ({
     username,
