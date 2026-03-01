@@ -157,7 +157,7 @@ let activeMenuTab = 'functions';
 const chatInput = document.getElementById('chatInput');
 let isChatting = false;
 let chatMessages = [];
-const MAX_MESSAGES = 10;
+const MAX_MESSAGES = 20;
 
 socket.on('connect', () => {
     myId = socket.id;
@@ -238,7 +238,7 @@ window.addEventListener('keydown', function(event) {
         }
     }
 
-    if (key === 'x') {
+    if (key === 'n') {
         isInstructionsOpen = !isInstructionsOpen;
     }
 
