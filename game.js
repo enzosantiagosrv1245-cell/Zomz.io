@@ -1,4 +1,4 @@
-const isDev = player.isDev;
+
 const DEV_USERNAMES = ['Eddie', 'Mingau', 'SeuNomeAqui'];
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
