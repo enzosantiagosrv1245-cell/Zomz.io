@@ -430,9 +430,9 @@ canvas.addEventListener('mousedown', function(event) {
         }
         return;
     }
-
-    if (isMenuOpen) {
-        if (!me) return;
+if (isMenuOpen) {
+    const me = gameState.players[myId];
+    if (!me) return;
 
         // NOVO: Lógica para fechar a loja no 'X'
         const menuWidth = 1500,
@@ -1018,15 +1018,6 @@ function draw() {
     ctx.fillStyle = (player.role === 'zombie' || player.isSpying) ? '#2ecc71' : 'white';
     ctx.fillText(player.name, nameX, nameY);
 }
-            } else {
-                ctx.textAlign = 'center';
-                ctx.font = '18px Arial';
-                ctx.strokeStyle = 'black';
-                ctx.lineWidth = 5;
-                ctx.strokeText(player.name, nameX, nameY);
-                ctx.fillStyle = (player.role === 'zombie' || player.isSpying) ? '#2ecc71' : 'white';
-                ctx.fillText(player.name, nameX, nameY);
-            }
         }
     }
 
@@ -1163,6 +1154,7 @@ function draw() {
     if (isInstructionsOpen) {
         drawInstructionsMenu();
     }
+}
 
 
 function drawProfile() {
