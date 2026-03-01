@@ -48,15 +48,5 @@
     "editedName": false,
     "friends": [],
     "requests": []
-  },
-    "Harley": {
-    "id": "ID917486",
-    "username": "Harley",
-    "password": "primeiro_primata",
-    "color": "#3498db",
-    "photo": null,
-    "editedName": false,
-    "friends": [],
-    "requests": []
-}
+  }
 }
