@@ -38,5 +38,15 @@
     "editedName": false,
     "friends": [],
     "requests": []
+  },
+    "Mingau": {
+    "id": "ID916786",
+    "username": "Mingau",
+    "password": "dev",
+    "color": "#3498db",
+    "photo": null,
+    "editedName": false,
+    "friends": [],
+    "requests": []
   }
 }

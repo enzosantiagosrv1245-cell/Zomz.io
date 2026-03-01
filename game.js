@@ -1,5 +1,6 @@
 
 const DEV_USERNAMES = ['Eddie', 'Mingau', 'SeuNomeAqui'];
+const ARTIST_USERNAMES = ['Harley'];
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 // const socket = io(); // Assuming socket is initialized in HTML
@@ -993,20 +994,28 @@ function draw() {
 
         if (!player.isHidden && !player.isInvisible) {
             const isDev = player.isDev;
+            const isArtist = ARTIST_USERNAMES.includes(player.name);
             const nameX = player.x + player.width / 2;
             const nameY = player.y - 20;
 
-           if (isDev) {
+if (isDev) {
     ctx.font = 'bold 20px Arial';
-    const emoji = '⚙️ ';
-    const playerName = player.name;
-    const fullName = emoji + playerName;
-
+    const fullName = '⚙️ ' + player.name;
     ctx.textAlign = 'center';
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 5;
     ctx.strokeText(fullName, nameX, nameY);
     ctx.fillStyle = '#FFD700';
+    ctx.fillText(fullName, nameX, nameY);
+
+} else if (isArtist) {
+    ctx.font = 'bold 20px Arial';
+    const fullName = '🎨 ' + player.name;
+    ctx.textAlign = 'center';
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 5;
+    ctx.strokeText(fullName, nameX, nameY);
+    ctx.fillStyle = '#FF69B4';
     ctx.fillText(fullName, nameX, nameY);
 
 } else {
@@ -1017,6 +1026,7 @@ function draw() {
     ctx.strokeText(player.name, nameX, nameY);
     ctx.fillStyle = (player.role === 'zombie' || player.isSpying) ? '#2ecc71' : 'white';
     ctx.fillText(player.name, nameX, nameY);
+}
 }
         }
     }
@@ -1154,7 +1164,7 @@ function draw() {
     if (isInstructionsOpen) {
         drawInstructionsMenu();
     }
-}
+
 
 
 function drawProfile() {
@@ -1494,10 +1504,14 @@ function drawChat() {
         // Desenha o nome
  ctx.font = 'bold 18px Arial';
 const isDevMsg = DEV_USERNAMES.includes(msg.name);
-ctx.fillStyle = msg.name === 'Server' ? '#FFD700' 
+const isArtistMsg = ARTIST_USERNAMES.includes(msg.name);
+ctx.fillStyle = msg.name === 'Server' ? '#FFD700'
     : isDevMsg ? '#FF6600'
+    : isArtistMsg ? '#FF69B4'
     : (msg.isZombie ? '#2ecc71' : '#3498db');
-const displayName = isDevMsg ? '⚙️ ' + msg.name : msg.name;
+const displayName = isDevMsg ? '⚙️ ' + msg.name
+    : isArtistMsg ? '🎨 ' + msg.name
+    : msg.name;
 ctx.fillText(displayName + ':', messageX, messageY);
 
         // Desenha a mensagem
