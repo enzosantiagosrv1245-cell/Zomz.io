@@ -1,4 +1,5 @@
 const DEV_USERNAMES = ['Eddie', 'Mingau', 'SeuNomeAqui'];
+const ARTIST_USERNAMES = ['Harley'];
 const express = require('express');
 const http = require('http');
 const {
@@ -1673,6 +1674,7 @@ io.on('connection', (socket) => {
         if (player) {
             player.name = username;
         player.isDev = DEV_USERNAMES.includes(username); // NOVO 
+        player.isArtist = ARTIST_USERNAMES.includes(username);
         }
     });
 
