@@ -187,6 +187,7 @@ socket.on('newMessage', (message) => {
 });
 
 window.addEventListener('keydown', function(event) {
+    if (!event.key) return;
     const key = event.key.toLowerCase();
     
     if (key === 'enter') {
@@ -1028,8 +1029,6 @@ if (isDev) {
     ctx.fillStyle = (player.role === 'zombie' || player.isSpying) ? '#2ecc71' : 'white';
     ctx.fillText(player.name, nameX, nameY);
 }
-}
-        }
     }
 
     if (gameState.floatingTexts) {
@@ -1165,7 +1164,7 @@ if (isDev) {
     if (isInstructionsOpen) {
         drawInstructionsMenu();
     }
-
+    }}
 
 
 function drawProfile() {
