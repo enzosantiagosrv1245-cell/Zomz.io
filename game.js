@@ -187,8 +187,7 @@ socket.on('newMessage', (message) => {
 
 window.addEventListener('keydown', function(event) {
     const key = event.key.toLowerCase();
-    window.addEventListener('keydown', function(event) {
-    const key = event.key.toLowerCase(); // já existe no seu código
+    const me = gameState.players[myId];
     if (!me) return; // ADICIONE ESSA LINHA
     
     if (key === 'enter') {
