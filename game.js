@@ -188,8 +188,7 @@ socket.on('newMessage', (message) => {
 window.addEventListener('keydown', function(event) {
     const key = event.key.toLowerCase();
     window.addEventListener('keydown', function(event) {
-    const key = event.key.toLowerCase();
-    const me = gameState.players[myId]; // já existe no seu código
+    const key = event.key.toLowerCase(); // já existe no seu código
     if (!me) return; // ADICIONE ESSA LINHA
     
     if (key === 'enter') {
@@ -434,7 +433,6 @@ canvas.addEventListener('mousedown', function(event) {
     }
 
     if (isMenuOpen) {
-        const me = gameState.players[myId];
         if (!me) return;
 
         // NOVO: Lógica para fechar a loja no 'X'
@@ -565,7 +563,6 @@ canvas.addEventListener('mousedown', function(event) {
             }
         }
     } else {
-        const me = gameState.players[myId];
         const selectedItem = me && me.inventory && me.inventory[me.selectedSlot];
         if (selectedItem && selectedItem.id === 'drone') {
             socket.emit('playerAction', {
