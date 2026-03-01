@@ -1503,7 +1503,7 @@ ctx.fillText(displayName + ':', messageX, messageY);
         // Desenha a mensagem
         ctx.font = '18px Arial';
         ctx.fillStyle = '#f0f0f0';
-        const nameWidth = ctx.measureText(msg.name + ': ').width;
+        const nameWidth = ctx.measureText(displayName + ': ').width;
         ctx.fillText(msg.text, messageX + nameWidth, messageY);
     });
     ctx.restore();
