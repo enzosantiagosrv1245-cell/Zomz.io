@@ -996,25 +996,28 @@ function draw() {
             const nameX = player.x + player.width / 2;
             const nameY = player.y - 20;
 
-            if (isDev) {
-                ctx.font = 'bold 20px Arial';
-                const emoji = '⚙️ ';
-                const playerName = player.name;
-                const fullName = emoji + playerName;
+           if (isDev) {
+    ctx.font = 'bold 20px Arial';
+    const emoji = '⚙️ ';
+    const playerName = player.name;
+    const fullName = emoji + playerName;
 
-                ctx.textAlign = 'center';
-                ctx.strokeStyle = 'black';
-                ctx.lineWidth = 5;
-                ctx.strokeText(fullName, nameX, nameY);
-                ctx.fillStyle = '#FFD700';
-                ctx.fillText(fullName, nameX, nameY);
+    ctx.textAlign = 'center';
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 5;
+    ctx.strokeText(fullName, nameX, nameY);
+    ctx.fillStyle = '#FFD700';
+    ctx.fillText(fullName, nameX, nameY);
 
-                // Draw player name
-                ctx.fillStyle = (player.role === 'zombie' || player.isSpying) ? '#2ecc71' : 'white';
-                ctx.strokeText(playerName, playerNameX, nameY);
-                ctx.fillText(playerName, playerNameX, nameY);
-                ctx.fillText(playerName, playerNameX, nameY);
-
+} else {
+    ctx.textAlign = 'center';
+    ctx.font = '18px Arial';
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 5;
+    ctx.strokeText(player.name, nameX, nameY);
+    ctx.fillStyle = (player.role === 'zombie' || player.isSpying) ? '#2ecc71' : 'white';
+    ctx.fillText(player.name, nameX, nameY);
+}
             } else {
                 ctx.textAlign = 'center';
                 ctx.font = '18px Arial';
@@ -1160,7 +1163,7 @@ function draw() {
     if (isInstructionsOpen) {
         drawInstructionsMenu();
     }
-}
+
 
 function drawProfile() {
     // Este é um placeholder para a interface do perfil.
