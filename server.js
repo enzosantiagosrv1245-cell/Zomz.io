@@ -20,6 +20,8 @@ const USERS_FILE = path.join(__dirname, "users.json");
 const MESSAGES_FILE = path.join(__dirname, "messages.json");
 const LINKS_FILE = path.join(__dirname, "links.json");
 
+const DEV_USERNAMES = ['Eddie', 'Mingau', 'MINGAU'];
+
 let users = {};
 let sockets = {};
 let messages = {};
@@ -1670,6 +1672,7 @@ io.on('connection', (socket) => {
         const player = gameState.players[socket.id];
         if (player) {
             player.name = username;
+        player.isDev = DEV_USERNAMES.includes(username); // NOVO 
         }
     });
 

@@ -1,6 +1,8 @@
 const canvas = document.getElementById('gameCanvas');
+const DEV_USERNAMES = ['Eddie', 'Mingau', 'MINGAU'];
 const ctx = canvas.getContext('2d');
 // const socket = io(); // Assuming socket is initialized in HTML
+const isDev = player.isDev
 
 (function setup() {
     const chatInput = document.getElementById('chatInput');
@@ -994,24 +996,17 @@ function draw() {
             const nameY = player.y - 20;
 
             if (isDev) {
-                ctx.font = 'bold 20px College';
-                const devTag = '';
+                ctx.font = 'bold 20px Arial';
+                const emoji = '⚙️ ';
                 const playerName = player.name;
-                const devTagWidth = ctx.measureText(devTag).width;
-                const nameWidth = ctx.measureText(playerName).width;
-                const totalWidth = devTagWidth + nameWidth;
-                const devTagX = nameX - totalWidth / 2;
-                const playerNameX = devTagX + devTagWidth;
+                const fullName = emoji + playerName;
 
-                ctx.textAlign = 'left';
-
+                ctx.textAlign = 'center';
                 ctx.strokeStyle = 'black';
                 ctx.lineWidth = 5;
-
-                // Draw DEV tag in red
-                ctx.fillStyle = 'red';
-                ctx.strokeText(devTag, devTagX, nameY);
-                ctx.fillText(devTag, devTagX, nameY);
+                ctx.strokeText(fullName, nameX, nameY);
+                ctx.fillStyle = '#FFD700';
+                ctx.fillText(fullName, nameX, nameY);
 
                 // Draw player name
                 ctx.fillStyle = (player.role === 'zombie' || player.isSpying) ? '#2ecc71' : 'white';
@@ -1501,9 +1496,13 @@ function drawChat() {
         const messageX = chatBoxX + chatBoxPadding;
 
         // Desenha o nome
-        ctx.font = 'bold 18px Arial';
-        ctx.fillStyle = msg.name === 'Server' ? '#FFD700' : (msg.isZombie ? '#2ecc71' : '#3498db');
-        ctx.fillText(msg.name + ':', messageX, messageY);
+ ctx.font = 'bold 18px Arial';
+const isDevMsg = DEV_USERNAMES.includes(msg.name);
+ctx.fillStyle = msg.name === 'Server' ? '#FFD700' 
+    : isDevMsg ? '#FF6600'
+    : (msg.isZombie ? '#2ecc71' : '#3498db');
+const displayName = isDevMsg ? '⚙️ ' + msg.name : msg.name;
+ctx.fillText(displayName + ':', messageX, messageY);
 
         // Desenha a mensagem
         ctx.font = '18px Arial';
