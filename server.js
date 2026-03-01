@@ -10,7 +10,6 @@ const {
 const Matter = require('matter-js');
 const fs = require('fs-extra');
 const path = require('path');
-const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
