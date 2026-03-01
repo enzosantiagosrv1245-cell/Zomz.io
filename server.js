@@ -1,3 +1,4 @@
+const DEV_USERNAMES = ['Eddie', 'Mingau', 'SeuNomeAqui'];
 const express = require('express');
 const http = require('http');
 const {
@@ -20,7 +21,6 @@ const USERS_FILE = path.join(__dirname, "users.json");
 const MESSAGES_FILE = path.join(__dirname, "messages.json");
 const LINKS_FILE = path.join(__dirname, "links.json");
 
-const DEV_USERNAMES = ['Eddie', 'Mingau', 'MINGAU'];
 
 let users = {};
 let sockets = {};

@@ -1,5 +1,5 @@
+const DEV_USERNAMES = ['Eddie', 'Mingau', 'SeuNomeAqui'];
 const canvas = document.getElementById('gameCanvas');
-const DEV_USERNAMES = ['Eddie', 'Mingau', 'MINGAU'];
 const ctx = canvas.getContext('2d');
 // const socket = io(); // Assuming socket is initialized in HTML
 const isDev = player.isDev
