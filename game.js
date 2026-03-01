@@ -358,7 +358,7 @@ window.addEventListener('keydown', function(event) {
             }
             break;
     }
-})});
+});;
 
 window.addEventListener('keyup', function(event) {
         if (!event.key) return;
