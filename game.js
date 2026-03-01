@@ -187,8 +187,11 @@ socket.on('newMessage', (message) => {
 
 window.addEventListener('keydown', function(event) {
     const key = event.key.toLowerCase();
-    const me = gameState.players[myId];
-
+    window.addEventListener('keydown', function(event) {
+    const key = event.key.toLowerCase();
+    const me = gameState.players[myId]; // já existe no seu código
+    if (!me) return; // ADICIONE ESSA LINHA
+    
     if (key === 'enter') {
         event.preventDefault();
         if (isChatting) {
@@ -357,9 +360,10 @@ window.addEventListener('keydown', function(event) {
             }
             break;
     }
-});
+})});
 
 window.addEventListener('keyup', function(event) {
+        if (!event.key) return;
     const key = event.key.toLowerCase();
     switch (key) {
         case 'w':
@@ -992,7 +996,7 @@ function draw() {
         ctx.restore();
 
         if (!player.isHidden && !player.isInvisible) {
-            const isDev = player.name === 'Eddie' || player.name === 'Mingau';
+            const isDev = player.isDev;
             const nameX = player.x + player.width / 2;
             const nameY = player.y - 20;
 
