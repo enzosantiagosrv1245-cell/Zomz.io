@@ -1658,25 +1658,40 @@ io.on('connection', (socket) => {
         socket.emit("registerSuccess", users[username]);
     });
 
-    socket.on("login", ({
-        username,
-        password
-    }) => {
-        if (!users[username] || users[username].password !== password)
-            return socket.emit("loginError", "Usuário ou senha incorretos!");
+socket.on("login", ({
+    username,
+    password
+}) => {
+    if (!users[username] || users[username].password !== password)
+        return socket.emit("loginError", "Usuário ou senha incorretos!");
 
-        socket.username = username;
-        sockets[username] = socket.id;
-        if (!messages[username]) messages[username] = {};
-        socket.emit("loginSuccess", users[username]);
+    // Detecta conta duplicada e remove física da segunda
+    const oldSocketId = sockets[username];
+    if (oldSocketId && oldSocketId !== socket.id && gameState.players[socket.id]) {
+        const duplicatePlayer = gameState.players[socket.id];
+        const duplicateBody = world.bodies.find(b => b.playerId === socket.id);
+        if (duplicateBody) {
+            duplicateBody.collisionFilter.mask = 0; // Sem colisão com nada
+            Matter.Body.setVelocity(duplicateBody, { x: 0, y: 0 });
+        }
+        duplicatePlayer.isInvisible = true;
+        duplicatePlayer.speed = 0;
+        duplicatePlayer.input = { movement: { up: false, down: false, left: false, right: false }, worldMouse: { x: 0, y: 0 } };
+        return socket.emit("loginError", "Essa conta já está logada em outro lugar!");
+    }
 
-        const player = gameState.players[socket.id];
-        if (player) {
-            player.name = username;
-        player.isDev = DEV_USERNAMES.includes(username); // NOVO 
+    socket.username = username;
+    sockets[username] = socket.id;
+    if (!messages[username]) messages[username] = {};
+    socket.emit("loginSuccess", users[username]);
+
+    const player = gameState.players[socket.id];
+    if (player) {
+        player.name = username;
+        player.isDev = DEV_USERNAMES.includes(username);
         player.isArtist = ARTIST_USERNAMES.includes(username);
-        }
-    });
+    }
+});
 
     socket.on("newLink", url => {
         links.push(url);
