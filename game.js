@@ -1,8 +1,9 @@
+const isDev = player.isDev;
 const DEV_USERNAMES = ['Eddie', 'Mingau', 'SeuNomeAqui'];
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 // const socket = io(); // Assuming socket is initialized in HTML
-const isDev = player.isDev
+
 
 (function setup() {
     const chatInput = document.getElementById('chatInput');
