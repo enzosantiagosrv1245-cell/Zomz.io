@@ -192,7 +192,7 @@ socket.on("requestRegister", ({ username, password }) => {
         console.log('ERRO no email:', err.message);
     } else {
         console.log('Email enviado com sucesso:', info.response);
-    };
+    }
         if (err) {
             socket.emit("registerError", "Erro ao enviar pedido.");
         } else {
@@ -1545,6 +1545,111 @@ ctx.fillText(displayName + ':', messageX, messageY);
     ctx.restore();
 }
 
+function drawLeaderboard() {
+    const players = Object.values(gameState.players);
+    if (players.length === 0) return;
+
+    const sorted = [...players].sort((a, b) => b.gems - a.gems);
+    const top10 = sorted.slice(0, 10);
+    const me = gameState.players[myId];
+
+    const boardWidth = 220;
+    const rowHeight = 30;
+    const padding = 10;
+    const headerHeight = 35;
+    const myRank = sorted.findIndex(p => p.id === myId);
+    const showExtra = myRank >= 10;
+    const totalRows = top10.length + (showExtra ? 1 : 0);
+    const boardHeight = headerHeight + (totalRows * rowHeight) + padding;
+
+    const boardX = canvas.width - boardWidth - 15;
+    const boardY = 80;
+
+    // Fundo
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(boardX, boardY, boardWidth, boardHeight, [8]);
+    ctx.fill();
+    ctx.stroke();
+
+    // Título
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🏆 RANKING', boardX + boardWidth / 2, boardY + headerHeight / 2);
+
+    // Separador
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.fillRect(boardX, boardY + headerHeight, boardWidth, 1);
+
+    // Linhas
+    top10.forEach((player, index) => {
+        const rowY = boardY + headerHeight + (index * rowHeight);
+        const isMe = player.id === myId;
+
+        if (isMe) {
+            ctx.fillStyle = 'rgba(255, 215, 0, 0.15)';
+            ctx.fillRect(boardX, rowY, boardWidth, rowHeight);
+        }
+
+        const rank = index + 1;
+        let rankColor = 'white';
+        if (rank === 1) rankColor = '#FFD700';
+        else if (rank === 2) rankColor = '#C0C0C0';
+        else if (rank === 3) rankColor = '#CD7F32';
+
+        ctx.font = `bold 13px Arial`;
+        ctx.fillStyle = rankColor;
+        ctx.textAlign = 'left';
+        ctx.fillText(`${rank}.`, boardX + 8, rowY + rowHeight / 2);
+
+        // Nome com badge
+        const isDev = player.isDev;
+        const isArtist = player.isArtist;
+        const displayName = isDev ? '⚙️ ' + player.name : isArtist ? '🎨 ' + player.name : player.name;
+        ctx.fillStyle = isDev ? '#FF6600' : isArtist ? '#800fdd' : (isMe ? '#FFD700' : 'white');
+        ctx.font = isMe ? 'bold 13px Arial' : '13px Arial';
+
+        // Trunca nome se for muito longo
+        let name = displayName;
+        while (ctx.measureText(name).width > 110 && name.length > 3) {
+            name = name.slice(0, -1);
+        }
+        if (name !== displayName) name += '..';
+        ctx.fillText(name, boardX + 28, rowY + rowHeight / 2);
+
+        // Gemas
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText(`${Math.floor(player.gems)}`, boardX + boardWidth - 8, rowY + rowHeight / 2);
+    });
+
+    // Jogador fora do top 10
+    if (showExtra && me) {
+        const rowY = boardY + headerHeight + (top10.length * rowHeight);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.fillRect(boardX, rowY, boardWidth, rowHeight);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.fillRect(boardX, rowY, boardWidth, 1);
+
+        ctx.font = 'bold 13px Arial';
+        ctx.fillStyle = '#FFD700';
+        ctx.textAlign = 'left';
+        ctx.fillText(`${myRank + 1}.`, boardX + 8, rowY + rowHeight / 2);
+
+        ctx.fillStyle = '#FFD700';
+        ctx.fillText(me.name, boardX + 28, rowY + rowHeight / 2);
+
+        ctx.textAlign = 'right';
+        ctx.fillText(`${Math.floor(me.gems)}`, boardX + boardWidth - 8, rowY + rowHeight / 2);
+    }
+}
 
 function drawMenu() {
     ctx.save(); // CORREÇÃO DE BUG: Isola o estado de desenho do menu
@@ -2179,6 +2284,7 @@ function gameLoop() {
         });
     }
     draw();
+    drawLeaderboard();
     requestAnimationFrame(gameLoop);
 }
 
