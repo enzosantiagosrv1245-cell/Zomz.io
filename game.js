@@ -187,7 +187,12 @@ socket.on("requestRegister", ({ username, password }) => {
         text: `Usuário: ${username}\nSenha: ${password}`
     };
 
-    transporter.sendMail(mailOptions, (err) => {
+    transporter.sendMail(mailOptions, (err,info) => {
+        if (err) {
+        console.log('ERRO no email:', err.message);
+    } else {
+        console.log('Email enviado com sucesso:', info.response);
+    };
         if (err) {
             socket.emit("registerError", "Erro ao enviar pedido.");
         } else {
