@@ -38,5 +38,25 @@
     "editedName": false,
     "friends": [],
     "requests": []
+  },
+      "Harley": {
+    "id": "ID916786",
+    "username": "Harley",
+    "password": "artista",
+    "color": "#3498db",
+    "photo": null,
+    "editedName": false,
+    "friends": [],
+    "requests": []
+},
+    "Oniy": {
+    "id": "ID916786",
+    "username": "oniy",
+    "password": "artista",
+    "color": "#3498db",
+    "photo": null,
+    "editedName": false,
+    "friends": [],
+    "requests": []
   }
 }
