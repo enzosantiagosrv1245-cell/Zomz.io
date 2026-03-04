@@ -613,6 +613,7 @@ canvas.addEventListener('wheel', function(event) {
 
 function draw() {
     if (!myId || !gameState.players || !gameState.players[myId]) {
+         console.log("Player no estado:", playerId, gameState.players[playerId]?.name);
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = 'white';
