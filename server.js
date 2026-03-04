@@ -1684,19 +1684,10 @@ socket.on("login", ({
         return socket.emit("loginError", "Usuário ou senha incorretos!");
 
     // Detecta conta duplicada e remove física da segunda
-    const oldSocketId = sockets[username];
-    if (oldSocketId && oldSocketId !== socket.id && gameState.players[socket.id]) {
-        const duplicatePlayer = gameState.players[socket.id];
-        const duplicateBody = world.bodies.find(b => b.playerId === socket.id);
-        if (duplicateBody) {
-            duplicateBody.collisionFilter.mask = 0; // Sem colisão com nada
-            Matter.Body.setVelocity(duplicateBody, { x: 0, y: 0 });
-        }
-        duplicatePlayer.isInvisible = true;
-        duplicatePlayer.speed = 0;
-        duplicatePlayer.input = { movement: { up: false, down: false, left: false, right: false }, worldMouse: { x: 0, y: 0 } };
-        return socket.emit("loginError", "Essa conta já está logada em outro lugar!");
-    }
+   const oldSocketId = sockets[username];
+if (oldSocketId && oldSocketId !== socket.id) {
+    return socket.emit("loginError", "Essa conta já está logada em outro lugar!");
+}
 
     socket.username = username;
     sockets[username] = socket.id;
