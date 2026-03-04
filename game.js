@@ -946,9 +946,9 @@ function draw() {
     for (const playerId in gameState.players) {
         const player = gameState.players[playerId];
         if (player.isInDuct || player.isBeingEaten) continue;
-        if (player.isHidden || (player.isInvisible && me.role === 'zombie' && playerId !== myId)) {
-            continue;
-        }
+if (player.isHidden) {
+    continue;
+}
 
         const hasAngelWings = player.inventory && player.inventory.some(i => i && i.id === 'angelWings');
 
