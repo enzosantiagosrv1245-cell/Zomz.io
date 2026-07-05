@@ -925,7 +925,7 @@ function draw() {
     for (const playerId in gameState.players) {
         const player = gameState.players[playerId];
         if (player.isInDuct || player.isBeingEaten) continue;
-        if (player.isHidden || player.isInvisible) {
+        if (player.isHidden || (player.isInvisible && playerId !== myId)) {
             continue;
         }
 
