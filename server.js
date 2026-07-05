@@ -1,6 +1,5 @@
 const DEV_USERNAMES = ['Eddie', 'Mingau', 'SeuNomeAqui'];
 const ARTIST_USERNAMES = ['Harley'];
-const nodemailer = require('nodemailer');
 
 const express = require('express');
 const http = require('http');
@@ -10,14 +9,6 @@ const {
 const Matter = require('matter-js');
 const fs = require('fs-extra');
 const path = require('path');
-
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: 'enzosantiagosrv1245@gmail.com',
-        pass: process.env.EMAIL_PASS
-    }
-});
 
 const app = express();
 const server = http.createServer(app);
@@ -1649,13 +1640,22 @@ io.on('connection', (socket) => {
     createNewPlayer(socket);
 
     socket.on("register", ({ username, password }) => {
-    if (users[username]) return socket.emit("registerError", "Usuário já existe!");
-    
+    const cleanUsername = String(username || "").trim();
+    const cleanPassword = String(password || "").trim();
+
+    if (!cleanUsername || !cleanPassword) {
+        return socket.emit("registerError", "Preencha usuário e senha.");
+    }
+
+    if (users[cleanUsername]) {
+        return socket.emit("registerError", "Usuário já existe!");
+    }
+
     const id = generateID();
-    users[username] = {
+    users[cleanUsername] = {
         id,
-        username,
-        password,
+        username: cleanUsername,
+        password: cleanPassword,
         color: "#3498db",
         photo: null,
         editedName: false,
@@ -1663,17 +1663,12 @@ io.on('connection', (socket) => {
         requests: []
     };
     saveUsers();
-    socket.emit("registerSuccess", users[username]);
 
-    // Envia email pra você
-    transporter.sendMail({
-        from: 'enzosantiagosrv1245@gmail.com',
-        to: 'enzosantiagosrv1245@gmail.com',
-        subject: '🎮 Nova conta criada - Infestation',
-        text: `Nova conta criada!\n\nUsuário: ${username}\nSenha: ${password}\nID: ${id}\n\nAdicione no users.json do GitHub para salvar permanentemente.`
-    }, (err) => {
-        if (err) console.log('Erro ao enviar email:', err);
-    });
+    socket.username = cleanUsername;
+    sockets[cleanUsername] = socket.id;
+
+    socket.emit("registerSuccess", users[cleanUsername]);
+    socket.emit("loginSuccess", users[cleanUsername]);
 });
 
 socket.on("login", ({

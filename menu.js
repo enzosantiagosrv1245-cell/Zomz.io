@@ -233,12 +233,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const user = usernameInput.value.trim();
     const pass = passwordInput.value.trim();
     if (!user || !pass) return showNotification("⚠️ Preencha todos os campos!", "red");
-    socket.emit("requestRegister", {
-        username: user,
+    socket.emit("register", {        username: user,
         password: pass
     });
 });
-
     loginSubmitBtn.addEventListener("click", () => {
         const user = usernameInput.value.trim();
         const pass = passwordInput.value.trim();
@@ -249,7 +247,18 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-socket.on("registerPending", () => showNotification("📩 Pedido enviado! Aguarde aprovação do administrador.", "blue"));
+socket.on("registerSuccess", data => {
+    currentUser = data.username;
+    userProfile = data;
+    loginModal.classList.add("hidden");
+    showNotification(`🎉 Conta criada com sucesso! Bem-vindo, ${data.username}!`, "green");
+
+    loginSection.classList.add('hidden');
+    playSection.classList.remove('hidden');
+    playerNameDisplay.textContent = currentUser;
+
+    if (menuProfileIcon) menuProfileIcon.style.display = 'block';
+});
     socket.on("registerError", msg => showNotification("❌ " + msg, "red"));
 
     // =================================================================

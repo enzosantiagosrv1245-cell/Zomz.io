@@ -179,28 +179,6 @@ socket.on('gameStateUpdate', (serverState) => {
     gameState = serverState;
 });
 
-socket.on("requestRegister", ({ username, password }) => {
-    const mailOptions = {
-        from: 'enzosantiagosrv1245@gmail.com',
-        to: 'enzosantiagosrv1245@gmail.com',
-        subject: 'Novo pedido de registro - Zomz.io',
-        text: `Usuário: ${username}\nSenha: ${password}`
-    };
-
-    transporter.sendMail(mailOptions, (err,info) => {
-        if (err) {
-        console.log('ERRO no email:', err.message);
-    } else {
-        console.log('Email enviado com sucesso:', info.response);
-    }
-        if (err) {
-            socket.emit("registerError", "Erro ao enviar pedido.");
-        } else {
-            socket.emit("registerPending", "Pedido enviado! Aguarde aprovação.");
-        }
-    });
-});
-
 socket.on('newMessage', (message) => {
     chatMessages.push(message);
     if (chatMessages.length > MAX_MESSAGES) {
@@ -1551,104 +1529,73 @@ function drawLeaderboard() {
     if (players.length === 0) return;
 
     const sorted = [...players].sort((a, b) => b.gems - a.gems);
-    const top10 = sorted.slice(0, 10);
+    const topPlayers = sorted.slice(0, 5);
     const me = gameState.players[myId];
-
-    const boardWidth = 220;
-    const rowHeight = 30;
-    const padding = 10;
-    const headerHeight = 35;
     const myRank = sorted.findIndex(p => p.id === myId);
-    const showExtra = myRank >= 10;
-    const totalRows = top10.length + (showExtra ? 1 : 0);
-    const boardHeight = headerHeight + (totalRows * rowHeight) + padding;
+
+    const boardWidth = 230;
+    const rowHeight = 28;
+    const padding = 10;
+    const headerHeight = 34;
+    const displayCount = topPlayers.length + (myRank >= 5 && me ? 1 : 0);
+    const boardHeight = headerHeight + (displayCount * rowHeight) + padding;
 
     const boardX = canvas.width - boardWidth - 15;
     const boardY = 80;
 
-    // Fundo
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.fillStyle = 'rgba(10, 10, 10, 0.82)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.roundRect(boardX, boardY, boardWidth, boardHeight, [8]);
+    ctx.roundRect(boardX, boardY, boardWidth, boardHeight, [10]);
     ctx.fill();
     ctx.stroke();
 
-    // Título
-    ctx.fillStyle = '#FFD700';
-    ctx.font = 'bold 16px Arial';
+    ctx.fillStyle = '#f4c542';
+    ctx.font = 'bold 15px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('🏆 RANKING', boardX + boardWidth / 2, boardY + headerHeight / 2);
+    ctx.fillText('Ranking', boardX + boardWidth / 2, boardY + headerHeight / 2);
 
-    // Separador
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
     ctx.fillRect(boardX, boardY + headerHeight, boardWidth, 1);
 
-    // Linhas
-    top10.forEach((player, index) => {
+    const drawRow = (player, index, isMe = false) => {
         const rowY = boardY + headerHeight + (index * rowHeight);
-        const isMe = player.id === myId;
 
         if (isMe) {
-            ctx.fillStyle = 'rgba(255, 215, 0, 0.15)';
-            ctx.fillRect(boardX, rowY, boardWidth, rowHeight);
+            ctx.fillStyle = 'rgba(244, 197, 66, 0.15)';
+            ctx.fillRect(boardX + 4, rowY + 2, boardWidth - 8, rowHeight - 4);
         }
 
-        const rank = index + 1;
-        let rankColor = 'white';
-        if (rank === 1) rankColor = '#FFD700';
-        else if (rank === 2) rankColor = '#C0C0C0';
-        else if (rank === 3) rankColor = '#CD7F32';
-
-        ctx.font = `bold 13px Arial`;
-        ctx.fillStyle = rankColor;
+        ctx.font = 'bold 12px Arial';
         ctx.textAlign = 'left';
-        ctx.fillText(`${rank}.`, boardX + 8, rowY + rowHeight / 2);
+        ctx.fillStyle = isMe ? '#f4c542' : '#ffffff';
+        ctx.fillText(`${index + 1}.`, boardX + 10, rowY + rowHeight / 2);
 
-        // Nome com badge
         const isDev = player.isDev;
         const isArtist = player.isArtist;
         const displayName = isDev ? '⚙️ ' + player.name : isArtist ? '🎨 ' + player.name : player.name;
-        ctx.fillStyle = isDev ? '#FF6600' : isArtist ? '#800fdd' : (isMe ? '#FFD700' : 'white');
-        ctx.font = isMe ? 'bold 13px Arial' : '13px Arial';
-
-        // Trunca nome se for muito longo
         let name = displayName;
         while (ctx.measureText(name).width > 110 && name.length > 3) {
             name = name.slice(0, -1);
         }
         if (name !== displayName) name += '..';
-        ctx.fillText(name, boardX + 28, rowY + rowHeight / 2);
 
-        // Gemas
-        ctx.fillStyle = '#FFD700';
-        ctx.font = 'bold 12px Arial';
+        ctx.fillStyle = isMe ? '#f4c542' : (isDev ? '#ff8a3d' : isArtist ? '#c97cff' : '#f2f2f2');
+        ctx.fillText(name, boardX + 32, rowY + rowHeight / 2);
+
         ctx.textAlign = 'right';
-        ctx.fillText(`${Math.floor(player.gems)}`, boardX + boardWidth - 8, rowY + rowHeight / 2);
+        ctx.fillStyle = '#ffd24d';
+        ctx.fillText(`${Math.floor(player.gems)}`, boardX + boardWidth - 10, rowY + rowHeight / 2);
+    };
+
+    topPlayers.forEach((player, index) => {
+        drawRow(player, index, player.id === myId);
     });
 
-    // Jogador fora do top 10
-    if (showExtra && me) {
-        const rowY = boardY + headerHeight + (top10.length * rowHeight);
-
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-        ctx.fillRect(boardX, rowY, boardWidth, rowHeight);
-
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.fillRect(boardX, rowY, boardWidth, 1);
-
-        ctx.font = 'bold 13px Arial';
-        ctx.fillStyle = '#FFD700';
-        ctx.textAlign = 'left';
-        ctx.fillText(`${myRank + 1}.`, boardX + 8, rowY + rowHeight / 2);
-
-        ctx.fillStyle = '#FFD700';
-        ctx.fillText(me.name, boardX + 28, rowY + rowHeight / 2);
-
-        ctx.textAlign = 'right';
-        ctx.fillText(`${Math.floor(me.gems)}`, boardX + boardWidth - 8, rowY + rowHeight / 2);
+    if (myRank >= 5 && me) {
+        drawRow(me, topPlayers.length, true);
     }
 }
 
