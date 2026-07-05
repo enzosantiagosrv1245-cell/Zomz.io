@@ -229,55 +229,48 @@ document.addEventListener("DOMContentLoaded", () => {
     loginBtn.addEventListener("click", () => loginModal.classList.remove("hidden"));
     closeModalBtn.addEventListener("click", () => loginModal.classList.add("hidden"));
 
-    registerBtn.addEventListener("click", () => {
-    const user = usernameInput.value.trim();
-    const pass = passwordInput.value.trim();
-    if (!user || !pass) return showNotification("⚠️ Preencha todos os campos!", "red");
-    socket.emit("register", {        username: user,
-        password: pass
+    registerBtn.addEventListener("click", () => {
+        const user = usernameInput.value.trim();
+        const pass = passwordInput.value.trim();
+        if (!user || !pass) return showNotification("⚠️ Preencha todos os campos!", "red");
+        socket.emit("register", {
+            username: user,
+            password: pass
+        });
     });
-});
-    loginSubmitBtn.addEventListener("click", () => {
-        const user = usernameInput.value.trim();
-        const pass = passwordInput.value.trim();
-        if (!user || !pass) return showNotification("⚠️ Preencha todos os campos!", "red");
-        socket.emit("login", {
-            username: user,
-            password: pass
-        });
-    });
+    loginSubmitBtn.addEventListener("click", () => {
+        const user = usernameInput.value.trim();
+        const pass = passwordInput.value.trim();
+        if (!user || !pass) return showNotification("⚠️ Preencha todos os campos!", "red");
+        socket.emit("login", {
+            username: user,
+            password: pass
+        });
+    });
 
-socket.on("registerSuccess", data => {
-    currentUser = data.username;
-    userProfile = data;
-    loginModal.classList.add("hidden");
-    showNotification(`🎉 Conta criada com sucesso! Bem-vindo, ${data.username}!`, "green");
+    socket.on("registerSuccess", data => {
+        showNotification(`✅ Conta criada com sucesso! Agora faça login.`, "green");
+    });
 
-    loginSection.classList.add('hidden');
-    playSection.classList.remove('hidden');
-    playerNameDisplay.textContent = currentUser;
+    socket.on("registerError", msg => showNotification("❌ " + msg, "red"));
 
-    if (menuProfileIcon) menuProfileIcon.style.display = 'block';
-});
-    socket.on("registerError", msg => showNotification("❌ " + msg, "red"));
+    // =================================================================
+    // --- LÓGICA DE LOGIN MODIFICADA ---
+    // =================================================================
+    socket.on("loginSuccess", data => {
+        currentUser = data.username;
+        userProfile = data;
+        loginModal.classList.add("hidden");
+        showNotification(`🎉 Login realizado! Bem-vindo, ${data.username}!`, "green");
 
-    // =================================================================
-    // --- LÓGICA DE LOGIN MODIFICADA ---
-    // =================================================================
-    socket.on("loginSuccess", data => {
-        currentUser = data.username;
-        userProfile = data;
-        loginModal.classList.add("hidden");
-        showNotification(`🎉 Login realizado! Bem-vindo, ${data.username}!`, "green");
+        // Atualiza a UI do menu para mostrar que o jogador está logado
+        loginSection.classList.add('hidden');
+        playSection.classList.remove('hidden');
+        playerNameDisplay.textContent = currentUser;
 
-        // Atualiza a UI do menu para mostrar que o jogador está logado
-        loginSection.classList.add('hidden');
-        playSection.classList.remove('hidden');
-        playerNameDisplay.textContent = currentUser;
-
-        // Mostra o ícone de perfil no menu
-        if (menuProfileIcon) menuProfileIcon.style.display = 'block';
-    });
+        // Mostra o ícone de perfil no menu
+        if (menuProfileIcon) menuProfileIcon.style.display = 'block';
+    });
     // =================================================================
     // --- FIM DA LÓGICA DE LOGIN MODIFICADA ---
     // =================================================================
@@ -377,179 +370,164 @@ socket.on("registerSuccess", data => {
             if (e.target === menu) menu.remove();
         });
     }
+    // --- Notificações ---
+    function showNotification(text, color = "yellow") {
+        const container = document.createElement("div");
+        container.style.position = "fixed";
+        container.style.bottom = "20px";
+        container.style.left = "50%";
+        container.style.transform = "translateX(-50%)";
+        container.style.padding = "10px 20px";
+        container.style.borderRadius = "5px";
+        container.style.zIndex = "9999";
+        container.style.backgroundColor = color;
+        container.style.maxWidth = "calc(100vw - 40px)";
+        container.style.whiteSpace = "normal";
+        container.style.textAlign = "center";
+        container.style.wordBreak = "break-word";
+        container.style.boxSizing = "border-box";
+        container.textContent = text;
+        document.body.appendChild(container);
+        setTimeout(() => container.remove(), 4000);
+    }
 
-    // --- Notificações ---
-    function showNotification(text, color = "yellow") {
-        const container = document.createElement("div");
-        container.style.position = 'fixed';
-        container.style.bottom = '20px';
-        container.style.left = '50%';
-        container.style.transform = 'translateX(-50%)';
-        container.style.padding = '10px 20px';
-        container.style.borderRadius = '5px';
-        container.style.zIndex = '9999';
-        container.style.backgroundColor = color;
-        container.innerHTML = `<b>${text}</b>`;
-        document.body.appendChild(container);
-        setTimeout(() => container.remove(), 4000);
-    }
+    socket.on("friendRequestNotification", ({
+        from,
+        color,
+        photo
+    }) => {
+        if (!userProfile) return;
+        if (!userProfile.requests.includes(from)) userProfile.requests.push(from);
+        updateFriendsUI();
+        showNotification(`📩 Pedido de amizade de ${from}`, "blue");
+    });
 
-    // --- Amigos ---
-    const friendInput = document.getElementById("friendInput");
-    const sendFriendRequestBtn = document.getElementById("sendFriendRequestBtn");
-    const friendsList = document.getElementById("friendsList");
-    const requestsList = document.getElementById("requestsList");
+    socket.on("friendAccepted", ({
+        from
+    }) => {
+        if (!userProfile) return;
+        if (!userProfile.friends.includes(from)) userProfile.friends.push(from);
+        updateFriendsUI();
+        renderChatFriends();
+        showNotification(`🤝 Você e ${from} agora são amigos!`, "green");
+    });
 
-    sendFriendRequestBtn.addEventListener("click", () => {
-        const target = friendInput.value.trim();
-        if (!target) return;
-        if (target === currentUser) return showNotification("⚠️ Não pode enviar para você mesmo", "red");
-        socket.emit("checkUserExists", target, exists => {
-            if (!exists) return showNotification("❌ Jogador não existe", "red");
-            socket.emit("friendRequest", {
-                from: currentUser,
-                to: target,
-                photo: userProfile.photo
-            });
-            showNotification("📩 Pedido enviado!", "green");
-        });
-    });
+    function updateFriendsUI() {
+        if (!userProfile) return;
+        friendsList.innerHTML = "";
+        requestsList.innerHTML = "";
 
-    socket.on("friendRequestNotification", ({
-        from,
-        color,
-        photo
-    }) => {
-        userProfile.requests.push(from);
-        updateFriendsUI();
-        showNotification(`📩 Pedido de amizade de ${from}`, "blue");
-    });
+        userProfile.friends.forEach(f => {
+            const li = document.createElement("li");
+            li.textContent = f;
+            li.onclick = () => openChat(f);
+            friendsList.appendChild(li);
+        });
 
-    socket.on("friendAccepted", ({
-        from
-    }) => {
-        if (!userProfile.friends.includes(from)) userProfile.friends.push(from);
-        updateFriendsUI();
-        renderChatFriends();
-        showNotification(`🤝 Você e ${from} agora são amigos!`, "green");
-    });
+        userProfile.requests.forEach(r => {
+            const li = document.createElement("li");
+            const nameSpan = document.createElement("span");
+            nameSpan.textContent = r;
 
-    function updateFriendsUI() {
-        if (!userProfile) return;
-        friendsList.innerHTML = "";
-        requestsList.innerHTML = "";
+            const buttonsDiv = document.createElement("div");
 
-        userProfile.friends.forEach(f => {
-            const li = document.createElement("li");
-            li.textContent = f;
-            li.onclick = () => openChat(f);
-            friendsList.appendChild(li);
-        });
+            const accept = document.createElement("button");
+            accept.textContent = "Aceitar";
+            accept.onclick = () => {
+                socket.emit("acceptRequest", {
+                    from: r,
+                    to: currentUser
+                });
+                if (!userProfile.friends.includes(r)) userProfile.friends.push(r);
+                userProfile.requests = userProfile.requests.filter(req => req !== r);
+                updateFriendsUI();
+            };
+            const reject = document.createElement("button");
+            reject.textContent = "Recusar";
+            reject.onclick = () => {
+                socket.emit("rejectRequest", {
+                    from: r,
+                    to: currentUser
+                });
+                userProfile.requests = userProfile.requests.filter(req => req !== r);
+                updateFriendsUI();
+            };
 
-        userProfile.requests.forEach(r => {
-            const li = document.createElement("li");
-            const nameSpan = document.createElement('span');
-            nameSpan.textContent = r;
+            buttonsDiv.appendChild(accept);
+            buttonsDiv.appendChild(reject);
+            li.appendChild(nameSpan);
+            li.appendChild(buttonsDiv);
+            requestsList.appendChild(li);
+        });
+    }
 
-            const buttonsDiv = document.createElement('div');
+    // --- Chat DM ---
+    const chatFriendsContainer = document.getElementById("chatFriends");
+    const chatMessagesFloating = document.getElementById("chatMessagesFloating");
+    const chatInputFloating = document.getElementById("chatInputFloating");
+    const sendChatFloating = document.getElementById("sendChatFloating");
+    let currentChat = null;
+    let chatHistory = {};
 
-            const accept = document.createElement("button");
-            accept.textContent = "Aceitar";
-            accept.onclick = () => {
-                socket.emit("acceptRequest", {
-                    from: r,
-                    to: currentUser
-                });
-                userProfile.friends.push(r);
-                userProfile.requests = userProfile.requests.filter(req => req !== r);
-                updateFriendsUI();
-            };
-            const reject = document.createElement("button");
-            reject.textContent = "Recusar";
-            reject.onclick = () => {
-                socket.emit("rejectRequest", {
-                    from: r,
-                    to: currentUser
-                });
-                userProfile.requests = userProfile.requests.filter(req => req !== r);
-                updateFriendsUI();
-            };
+    function renderChatFriends() {
+        chatFriendsContainer.innerHTML = "";
+        userProfile.friends.forEach(f => {
+            const btn = document.createElement("div");
+            btn.className = "chat-friend-btn";
+            btn.textContent = f;
+            btn.onclick = () => openChat(f);
+            chatFriendsContainer.appendChild(btn);
+        });
+    }
 
-            buttonsDiv.appendChild(accept);
-            buttonsDiv.appendChild(reject);
-            li.appendChild(nameSpan);
-            li.appendChild(buttonsDiv);
-            requestsList.appendChild(li);
-        });
-    }
+    function openChat(friend) {
+        currentChat = friend;
+        chatMessagesFloating.innerHTML = "";
+        if (!chatHistory[friend]) chatHistory[friend] = [];
+        chatHistory[friend].forEach(msg => appendMessage(msg.sender, msg.msg));
+        chatMessagesFloating.scrollTop = chatMessagesFloating.scrollHeight;
+        document.getElementById("chatFloating").classList.remove("hidden");
+        document.getElementById("chatHeader").textContent = `Chat com ${friend}`;
+    }
 
-    // --- Chat DM ---
-    const chatFriendsContainer = document.getElementById("chatFriends");
-    const chatMessagesFloating = document.getElementById("chatMessagesFloating");
-    const chatInputFloating = document.getElementById("chatInputFloating");
-    const sendChatFloating = document.getElementById("sendChatFloating");
-    let currentChat = null;
-    let chatHistory = {};
+    sendChatFloating.addEventListener("click", sendMessage);
+    chatInputFloating.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") sendMessage();
+    });
 
-    function renderChatFriends() {
-        chatFriendsContainer.innerHTML = "";
-        userProfile.friends.forEach(f => {
-            const btn = document.createElement("div");
-            btn.className = "chat-friend-btn";
-            btn.textContent = f;
-            btn.onclick = () => openChat(f);
-            chatFriendsContainer.appendChild(btn);
-        });
-    }
+    function sendMessage() {
+        const msg = chatInputFloating.value.trim();
+        if (!msg || !currentChat) return;
+        socket.emit("dm", {
+            to: currentChat,
+            msg
+        });
+        appendMessage(currentUser, msg);
+        chatInputFloating.value = "";
+        if (!chatHistory[currentChat]) chatHistory[currentChat] = [];
+        chatHistory[currentChat].push({
+            sender: currentUser,
+            msg
+        });
+    }
 
-    function openChat(friend) {
-        currentChat = friend;
-        chatMessagesFloating.innerHTML = "";
-        if (!chatHistory[friend]) chatHistory[friend] = [];
-        chatHistory[friend].forEach(msg => appendMessage(msg.sender, msg.msg));
-        chatMessagesFloating.scrollTop = chatMessagesFloating.scrollHeight;
-        document.getElementById('chatFloating').classList.remove('hidden');
-        document.getElementById('chatHeader').textContent = `Chat com ${friend}`;
-    }
+    socket.on("dm", ({
+        from,
+        msg
+    }) => {
+        if (!chatHistory[from]) chatHistory[from] = [];
+        chatHistory[from].push({
+            sender: from,
+            msg
+        });
+        if (from === currentChat) appendMessage(from, msg);
+        showNotification(`💬 Nova mensagem de ${from}`, "blue");
+    });
 
-    sendChatFloating.addEventListener("click", sendMessage);
-    chatInputFloating.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") sendMessage();
-    });
-
-    function sendMessage() {
-        const msg = chatInputFloating.value.trim();
-        if (!msg || !currentChat) return;
-        socket.emit("dm", {
-            to: currentChat,
-            msg
-        });
-        appendMessage(currentUser, msg);
-        chatInputFloating.value = "";
-        if (!chatHistory[currentChat]) chatHistory[currentChat] = [];
-        chatHistory[currentChat].push({
-            sender: currentUser,
-            msg
-        });
-    }
-
-    socket.on("dm", ({
-        from,
-        msg
-    }) => {
-        if (!chatHistory[from]) chatHistory[from] = [];
-        chatHistory[from].push({
-            sender: from,
-            msg
-        });
-        if (from === currentChat) appendMessage(from, msg);
-        showNotification(`💬 Nova mensagem de ${from}`, "blue");
-    });
-
-    function appendMessage(sender, msg) {
-        const div = document.createElement("div");
-        div.innerHTML = `<b>${sender}:</b> ${msg}`;
-        chatMessagesFloating.appendChild(div);
-        chatMessagesFloating.scrollTop = chatMessagesFloating.scrollHeight;
-    }
+    function appendMessage(sender, msg) {
+        const div = document.createElement("div");
+        div.innerHTML = `<b>${sender}:</b> ${msg}`;
+        chatMessagesFloating.appendChild(div);
+        chatMessagesFloating.scrollTop = chatMessagesFloating.scrollHeight;
+    }
 });

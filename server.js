@@ -1667,8 +1667,14 @@ io.on('connection', (socket) => {
     socket.username = cleanUsername;
     sockets[cleanUsername] = socket.id;
 
+    const playerEntry = gameState.players[socket.id];
+    if (playerEntry) {
+        playerEntry.name = cleanUsername;
+        playerEntry.isDev = DEV_USERNAMES.includes(cleanUsername);
+        playerEntry.isArtist = ARTIST_USERNAMES.includes(cleanUsername);
+    }
+
     socket.emit("registerSuccess", users[cleanUsername]);
-    socket.emit("loginSuccess", users[cleanUsername]);
 });
 
 socket.on("login", ({
