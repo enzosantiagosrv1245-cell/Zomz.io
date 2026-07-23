@@ -3,14 +3,13 @@
     "express": "^5.1.0",
     "fs-extra": "^11.3.1",
     "matter-js": "^0.20.0",
-    "nodemailer": "^8.0.1",
     "socket.io": "^4.8.1"
   },
   "name": "infestation-game",
   "version": "1.0.0",
   "main": "game.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --check server.js && node --check src/i18n.js && node --check src/menu.js && node --check src/game.js",
     "build": "node build.js",
     "prestart": "node build.js",
     "start": "node server.js"
@@ -20,6 +19,7 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
-    "javascript-obfuscator": "^5.5.0"
+    "javascript-obfuscator": "^5.5.0",
+    "socket.io-client": "^4.8.3"
   }
 }

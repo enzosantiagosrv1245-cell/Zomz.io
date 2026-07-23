@@ -2,7 +2,7 @@
   "Eddie": {
     "id": "ID108156",
     "username": "Eddie",
-    "password": "123",
+    "password": "scrypt:3963cda64283e38cec3d192d70e8b3ea:a629a69044489a6f96de688fa72ad2fde0984a9c9afa937e00483bdb389470a264905dbfd35b16d9a641a9f7de0e885789ff639f5ffa8bf0b73227f0b9a91570",
     "color": "#3498db",
     "photo": "https://www.google.com/url?sa=i&url=https%3A%2F%2Fdepositphotos.com%2Fbr%2Fvectors%2Fperfil-masculino.html&psig=AOvVaw2xcI-ra2qOCjr5IbEMqEvx&ust=1756228728998000&source=images&cd=vfe&opi=89978449&ved=0CBUQjRxqFwoTCODumoC8po8DFQAAAAAdAAAAABAM",
     "editedName": false,
@@ -12,7 +12,7 @@
   "Zombie": {
     "id": "ID916785",
     "username": "Zombie",
-    "password": "123456",
+    "password": "scrypt:c8f802fe0eb594c7694c4c5632dbd2ce:7915f924bee5fc5a408da1bb584e9d3994ece52ee72d01efeb447835544ec122cdae674eb424f933bb9bd5e1d349fac1bb9df97680d94861428db55b140d7363",
     "color": "#3498db",
     "photo": null,
     "editedName": false,
@@ -22,37 +22,37 @@
   "huh": {
     "id": "ID935256",
     "username": "huh",
-    "password": "huh",
+    "password": "scrypt:a9438b6d284ef12f8bf50e9eadd0b730:c02cd4180ba3582634c127558afaf711df0c26540b558fadd0966b9d5d59154b088097f391f6f8eca5b5701e82c13b027d7f06dee37e6dd5239b317d8924bd6e",
     "color": "#3498db",
     "photo": null,
     "editedName": false,
     "friends": [],
     "requests": []
   },
-    "Mingau": {
+  "Mingau": {
     "id": "ID916786",
     "username": "Mingau",
-    "password": "dev",
+    "password": "scrypt:b390a357170e7479e46a444ca153c7cb:159f8beea832cd68322b0e7e84456f75671a6ea933af1f80c7e539a42d21b7bc250931d03fa37868b9c35493a65e8fcf319ec26bc9d5a0e5dc313ddf2049cb02",
     "color": "#3498db",
     "photo": null,
     "editedName": false,
     "friends": [],
     "requests": []
   },
-      "Harley": {
+  "Harley": {
     "id": "ID916786",
     "username": "Harley",
-    "password": "artista",
+    "password": "scrypt:21f43a43a760d853c348c7dc9d9c66e4:b0c17be171466f9ef00a3a068f78595bf4fe7a501a54f2537da914c5798417f64c2268ec83bc5539e75c512f38bb4afbbc8e0097fd6676e10745d89d81e47c2a",
     "color": "#3498db",
     "photo": null,
     "editedName": false,
     "friends": [],
     "requests": []
-},
-    "Oniy": {
+  },
+  "Oniy": {
     "id": "ID916786",
     "username": "oniy",
-    "password": "artista",
+    "password": "scrypt:2fff2a2f4015a668ee8107c435c2cf5c:91d1120a2b8672d938787efdb8e175742416a9b444c3f2bf38f88f2a410507b9c55941852526432b8dcb1860201754ed434630691048c7044405ca07155f8a7d",
     "color": "#3498db",
     "photo": null,
     "editedName": false,

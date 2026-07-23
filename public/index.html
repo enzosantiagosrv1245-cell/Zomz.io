@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Infestation</title>
-    <meta name="description" content="Jogue Zomz.io, um jogo online grátis de sobrevivência, inspirado em braains.io!" />
-<meta name="keywords" content="infestation, infestation.io, jogo online, io game, zomz, zoomz, zomz.io" />
+    <meta name="description" content="Play Zomz.io, a free online survival game." />
+    <meta name="keywords" content="infestation, infestation.io, online game, survival game, zomz.io" />
     <link rel="stylesheet" href="style.css">
     <meta name="google-site-verification" content="wp3myCGwcc1qo59Zb1GGke9mF9-CLcbcHCDmNBjPHVM" />
 </head>
@@ -18,30 +18,38 @@
     
         <div id="menu-ui-container">
             <div id="instructions-panel" class="menu-panel">
-                <h2>Instructions</h2>
+                <h2 data-i18n="instructions">Instructions</h2>
                 <ul>
-                    <li><span class="key">WASD / Arrow</span> - Movement keys</li>
-                    <li><span class="key">G</span> - Drop item</li>
-                    <li><span class="key">E</span> - Pick up item</li>
-                    <li><span class="key">B</span> - Buy items as a human</li>
-                    <li><span class="key">Z</span> - Teleport to Spawn as a zombie</li>
-                    <li><span class="key">Mouse Left Click</span> - Use item / Attack</li>
+                    <li><span class="key">WASD / Arrow</span> - <span data-i18n="movement">Movement keys</span></li>
+                    <li><span class="key">G</span> - <span data-i18n="drop">Drop item</span></li>
+                    <li><span class="key">E</span> - <span data-i18n="pickup">Pick up item</span></li>
+                    <li><span class="key">B</span> - <span data-i18n="buy">Buy items as a human</span></li>
+                    <li><span class="key">Z</span> - <span data-i18n="teleport">Teleport to spawn as a zombie</span></li>
+                    <li><span class="key">Mouse Left Click</span> - <span data-i18n="attack">Use item / attack</span></li>
                 </ul>
             </div>
             <div id="main-menu-panel" class="menu-panel">
                 <h1>Infestation</h1>
+                <label for="languageSelector">Language</label>
+                <select id="languageSelector" data-language-selector aria-label="Language">
+                  <option value="en">English</option>
+                  <option value="pt">Portugues (Brasil)</option>
+                  <option value="es">Espanol</option>
+                  <option value="fr">Francais</option>
+                  <option value="de">Deutsch</option>
+                </select>
                 <div id="login-section">
-                     <button id="loginBtn" class="profile-btn">Log in</button>
+                     <button id="loginBtn" class="profile-btn" data-i18n="login">Log in</button>
                 </div>
                 <div id="play-section" class="hidden">
-                    <button id="playGameBtn">Play</button>
-                    <p class="logged-in-status">Connected as <span id="playerName"></span></p>
+                    <button id="playGameBtn" data-i18n="play">Play</button>
+                    <p class="logged-in-status"><span data-i18n="connectedAs">Connected as</span> <span id="playerName"></span></p>
                 </div>
             </div>
             <div id="right-panels-container">
                 <div id="discord-panel" class="menu-panel">
                     <button>
-                     Join us on <br><a style="color:blueviolet;" href="https://discord.gg/jShcFcguUw" target="_blank">DISCORD</a>
+                     <span data-i18n="joinDiscord">Join us on</span> <br><a style="color:blueviolet;" href="https://discord.gg/jShcFcguUw" target="_blank">DISCORD</a>
                     </button>
             </div>
         </div>
@@ -51,8 +59,8 @@
         <div id="loginModal" class="modal hidden">
           <div class="modal-content">
             <h2>Log in</h2>
-            <input type="text" id="username" placeholder="Usuário">
-            <input type="password" id="password" placeholder="Senha">
+            <input type="text" id="username" data-i18n-placeholder="username" placeholder="Username">
+            <input type="password" id="password" data-i18n-placeholder="password" placeholder="Password">
             <div class="modal-buttons">
               <button id="registerBtn">Create account</button>
               <button id="loginSubmitBtn">log in</button>
@@ -107,6 +115,7 @@
     <script>
         const socket = io();
     </script>
+    <script src="i18n.js"></script>
     <script src="menu.js"></script>
     <script src="game.js"></script>
 </body>

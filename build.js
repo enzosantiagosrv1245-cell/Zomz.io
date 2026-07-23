@@ -24,7 +24,7 @@ const SRC_DIR = path.join(__dirname, 'src');
 const OUT_DIR = path.join(__dirname, 'public');
 
 // Arquivos do cliente a ofuscar: src/<nome> -> public/<nome>
-const FILES = ['menu.js', 'game.js'];
+const FILES = ['i18n.js', 'menu.js', 'game.js'];
 
 // Opções balanceadas: forte o suficiente para afastar curiosos do F12,
 // sem destruir a performance do loop de renderização do jogo.

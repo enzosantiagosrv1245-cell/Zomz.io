@@ -169,6 +169,9 @@ socket.on('connect', () => {
 });
 
 socket.on('gameStateUpdate', (serverState) => {
+    if (!serverState || typeof serverState !== 'object' || !serverState.players || typeof serverState.players !== 'object') {
+        return;
+    }
     if (myId && gameState.players[myId] && serverState.players[myId]) {
         const meBefore = gameState.players[myId];
         const meNow = serverState.players[myId];
@@ -591,7 +594,6 @@ canvas.addEventListener('wheel', function(event) {
 
 function draw() {
     if (!myId || !gameState.players || !gameState.players[myId]) {
-         console.log("Player no estado:", playerId, gameState.players[playerId]?.name);
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = 'white';

@@ -3,6 +3,7 @@ const ARTIST_USERNAMES = ['Harley'];
 
 const express = require('express');
 const http = require('http');
+const crypto = require('crypto');
 const {
     Server
 } = require("socket.io");
@@ -12,12 +13,24 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+    maxHttpBufferSize: 16 * 1024,
+    pingTimeout: 20000,
+    pingInterval: 25000
+});
 
 const PORT = process.env.PORT || 3000;
 
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'same-origin');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; connect-src 'self' ws: wss:; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'");
+    next();
+});
+app.use(express.json({ limit: '16kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
 
 const USERS_FILE = path.join(__dirname, "users.json");
 const MESSAGES_FILE = path.join(__dirname, "messages.json");
@@ -33,11 +46,21 @@ if (fs.existsSync(USERS_FILE)) users = fs.readJsonSync(USERS_FILE);
 if (fs.existsSync(MESSAGES_FILE)) messages = fs.readJsonSync(MESSAGES_FILE);
 if (fs.existsSync(LINKS_FILE)) links = fs.readJsonSync(LINKS_FILE);
 
+let passwordsMigrated = false;
+for (const user of Object.values(users)) {
+    if (user && typeof user.password === 'string' && !user.password.startsWith('scrypt:')) {
+        user.password = hashPassword(user.password);
+        passwordsMigrated = true;
+    }
+}
+
 function saveUsers() {
     fs.writeJsonSync(USERS_FILE, users, {
         spaces: 2
     });
 }
+
+if (passwordsMigrated) saveUsers();
 
 function saveMessages() {
     fs.writeJsonSync(MESSAGES_FILE, messages, {
@@ -51,8 +74,89 @@ function saveLinks() {
     });
 }
 
+function buildClientState(socket) {
+    const clientPlayers = {};
+    for (const [id, player] of Object.entries(gameState.players || {})) {
+        if (id !== socket.id && (player.isHidden || player.isInvisible)) continue;
+        const { input, physicalHitbox, ...safePlayer } = player;
+        clientPlayers[id] = safePlayer;
+    }
+    return { ...gameState, players: clientPlayers };
+}
+
 function generateID() {
-    return "ID" + Math.floor(Math.random() * 1000000);
+    return `ID${crypto.randomBytes(12).toString('hex')}`;
+}
+
+const socketLimits = new Map();
+const MAX_USERNAME_LENGTH = 24;
+const MAX_PASSWORD_LENGTH = 128;
+const MAX_CHAT_LENGTH = 200;
+
+function isPlainObject(value) {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isFiniteNumber(value) {
+    return typeof value === 'number' && Number.isFinite(value);
+}
+
+function cleanUsername(value) {
+    if (typeof value !== 'string') return null;
+    const username = value.trim();
+    return /^[A-Za-z0-9_]{3,24}$/.test(username) ? username : null;
+}
+
+function hashPassword(password) {
+    const salt = crypto.randomBytes(16).toString('hex');
+    const hash = crypto.scryptSync(password, salt, 64).toString('hex');
+    return `scrypt:${salt}:${hash}`;
+}
+
+function verifyPassword(password, storedPassword) {
+    if (typeof storedPassword !== 'string') return false;
+    if (!storedPassword.startsWith('scrypt:')) return storedPassword === password;
+    const [, salt, expectedHex] = storedPassword.split(':');
+    if (!salt || !expectedHex) return false;
+    const actual = crypto.scryptSync(password, salt, 64);
+    const expected = Buffer.from(expectedHex, 'hex');
+    return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+}
+
+function publicUser(user) {
+    if (!user) return null;
+    const { password, ...safeUser } = user;
+    return safeUser;
+}
+
+function rateLimit(socket, key, limit, intervalMs) {
+    const now = Date.now();
+    let entries = socketLimits.get(socket.id);
+    if (!entries) {
+        entries = new Map();
+        socketLimits.set(socket.id, entries);
+    }
+    const entry = entries.get(key);
+    if (!entry || now - entry.startedAt >= intervalMs) {
+        entries.set(key, { startedAt: now, count: 1 });
+        return true;
+    }
+    entry.count += 1;
+    return entry.count <= limit;
+}
+
+function authenticatedPlayer(socket) {
+    return socket.username ? gameState.players[socket.id] : null;
+}
+
+function ensurePlayer(socket) {
+    if (!socket.username || gameState.players[socket.id]) return gameState.players[socket.id] || null;
+    createNewPlayer(socket);
+    return gameState.players[socket.id];
+}
+
+function validDirection(value) {
+    return value === 'left' || value === 'right';
 }
 
 const TICK_RATE = 1000 / 60;
@@ -1637,25 +1741,26 @@ function setupCollisionEvents() {
 io.on('connection', (socket) => {
     console.log(`[SERVIDOR] Conexão recebida. ID do Socket: ${socket.id}`);
 
-    createNewPlayer(socket);
+    socket.on("register", (payload) => {
+    if (!rateLimit(socket, 'register', 5, 60000) || !isPlainObject(payload)) {
+        return socket.emit("registerError", "Muitas tentativas ou dados inválidos.");
+    }
+    const username = cleanUsername(payload.username);
+    const password = typeof payload.password === 'string' ? payload.password.trim() : '';
 
-    socket.on("register", ({ username, password }) => {
-    const cleanUsername = String(username || "").trim();
-    const cleanPassword = String(password || "").trim();
-
-    if (!cleanUsername || !cleanPassword) {
-        return socket.emit("registerError", "Preencha usuário e senha.");
+    if (!username || password.length < 8 || password.length > MAX_PASSWORD_LENGTH) {
+        return socket.emit("registerError", "Usuário ou senha inválidos.");
     }
 
-    if (users[cleanUsername]) {
+    if (users[username]) {
         return socket.emit("registerError", "Usuário já existe!");
     }
 
     const id = generateID();
-    users[cleanUsername] = {
+    users[username] = {
         id,
-        username: cleanUsername,
-        password: cleanPassword,
+        username,
+        password: hashPassword(password),
         color: "#3498db",
         photo: null,
         editedName: false,
@@ -1664,24 +1769,26 @@ io.on('connection', (socket) => {
     };
     saveUsers();
 
-    socket.username = cleanUsername;
-    sockets[cleanUsername] = socket.id;
+    socket.username = username;
+    sockets[username] = socket.id;
 
-    const playerEntry = gameState.players[socket.id];
+    const playerEntry = ensurePlayer(socket);
     if (playerEntry) {
-        playerEntry.name = cleanUsername;
-        playerEntry.isDev = DEV_USERNAMES.includes(cleanUsername);
-        playerEntry.isArtist = ARTIST_USERNAMES.includes(cleanUsername);
+        playerEntry.name = username;
+        playerEntry.isDev = DEV_USERNAMES.includes(username);
+        playerEntry.isArtist = ARTIST_USERNAMES.includes(username);
     }
 
-    socket.emit("registerSuccess", users[cleanUsername]);
+    socket.emit("registerSuccess", publicUser(users[username]));
 });
 
-socket.on("login", ({
-    username,
-    password
-}) => {
-    if (!users[username] || users[username].password !== password)
+socket.on("login", (payload) => {
+    if (!rateLimit(socket, 'login', 8, 60000) || !isPlainObject(payload)) {
+        return socket.emit("loginError", "Muitas tentativas ou dados inválidos.");
+    }
+    const username = cleanUsername(payload.username);
+    const password = typeof payload.password === 'string' ? payload.password : '';
+    if (!username || !verifyPassword(password, users[username]?.password))
         return socket.emit("loginError", "Usuário ou senha incorretos!");
 
     // Detecta conta duplicada e remove física da segunda
@@ -1693,9 +1800,13 @@ if (oldSocketId && oldSocketId !== socket.id) {
     socket.username = username;
     sockets[username] = socket.id;
     if (!messages[username]) messages[username] = {};
-    socket.emit("loginSuccess", users[username]);
+    if (!users[username].password.startsWith('scrypt:')) {
+        users[username].password = hashPassword(password);
+        saveUsers();
+    }
+    socket.emit("loginSuccess", publicUser(users[username]));
 
-    const player = gameState.players[socket.id];
+    const player = ensurePlayer(socket);
     if (player) {
         player.name = username;
         player.isDev = DEV_USERNAMES.includes(username);
@@ -1703,37 +1814,47 @@ if (oldSocketId && oldSocketId !== socket.id) {
     }
 });
 
-    socket.on("newLink", url => {
-        links.push(url);
-        saveLinks();
-        socket.broadcast.emit("broadcastLink", url);
-    });
-    socket.on("checkUserExists", (username, callback) => callback(!!users[username]));
-    socket.on("friendRequest", ({
-        from,
-        to,
-        photo
-    }) => {
+    socket.on("newLink", url => {
+        if (!socket.username || !rateLimit(socket, 'newLink', 5, 60000) || typeof url !== 'string' || url.length > 512) return;
+        let parsedUrl;
+        try {
+            parsedUrl = new URL(url);
+        } catch {
+            return;
+        }
+        if (!['http:', 'https:'].includes(parsedUrl.protocol)) return;
+        links.push(parsedUrl.toString());
+        saveLinks();
+        socket.broadcast.emit("broadcastLink", parsedUrl.toString());
+    });
+    socket.on("checkUserExists", (username, callback) => {
+        if (typeof callback === 'function' && rateLimit(socket, 'checkUserExists', 30, 60000)) {
+            callback(typeof username === 'string' && !!users[username.trim()]);
+        }
+    });
+    socket.on("friendRequest", (payload) => {
+        if (!socket.username || !rateLimit(socket, 'friendRequest', 10, 60000) || !isPlainObject(payload)) return;
+        const to = cleanUsername(payload.to);
+        const from = socket.username;
+        if (!to || to === from || !users[to]) return;
         const targetSocket = sockets[to];
         if (targetSocket) {
             io.to(targetSocket).emit("friendRequestNotification", {
                 from,
-                photo
+                photo: users[from].photo
             });
         } else {
-            if (users[to]) {
-                users[to].requests.push(from);
-                saveUsers();
-            }
+            if (!users[to].requests.includes(from)) users[to].requests.push(from);
+            saveUsers();
         }
     });
-    socket.on("acceptRequest", ({
-        from,
-        to
-    }) => {
-        if (users[from] && users[to]) {
-            users[from].friends.push(to);
-            users[to].friends.push(from);
+    socket.on("acceptRequest", (payload) => {
+        if (!socket.username || !rateLimit(socket, 'acceptRequest', 20, 60000) || !isPlainObject(payload)) return;
+        const from = cleanUsername(payload.from);
+        const to = socket.username;
+        if (from && users[from] && users[to] && users[to].requests.includes(from)) {
+            if (!users[from].friends.includes(to)) users[from].friends.push(to);
+            if (!users[to].friends.includes(from)) users[to].friends.push(from);
             users[to].requests = users[to].requests.filter(r => r !== from);
             saveUsers();
         }
@@ -1744,84 +1865,94 @@ if (oldSocketId && oldSocketId !== socket.id) {
             });
         }
     });
-    socket.on("rejectRequest", ({
-        from,
-        to
-    }) => {
-        if (users[to]) {
+    socket.on("rejectRequest", (payload) => {
+        if (!socket.username || !rateLimit(socket, 'rejectRequest', 20, 60000) || !isPlainObject(payload)) return;
+        const from = cleanUsername(payload.from);
+        const to = socket.username;
+        if (from && users[to] && users[to].requests.includes(from)) {
             users[to].requests = users[to].requests.filter(r => r !== from);
             saveUsers();
         }
     });
-    socket.on("dm", ({
-        to,
-        msg
-    }) => {
+    socket.on("dm", (payload) => {
+        if (!socket.username || !rateLimit(socket, 'dm', 20, 10000) || !isPlainObject(payload)) return;
+        const to = cleanUsername(payload.to);
+        const msg = typeof payload.msg === 'string' ? payload.msg.trim().slice(0, MAX_CHAT_LENGTH) : '';
+        if (!to || !msg || !users[socket.username].friends.includes(to)) return;
         const targetSocket = sockets[to];
         if (targetSocket) io.to(targetSocket).emit("dm", {
             from: socket.username,
             msg
         });
     });
-    socket.on("changeName", ({
-        oldName,
-        newName
-    }) => {
-        if (users[oldName] && !users[newName]) {
-            users[newName] = { ...users[oldName],
-                username: newName
-            };
-            delete users[oldName];
+    socket.on("changeName", (payload) => {
+        if (!socket.username || !rateLimit(socket, 'changeName', 3, 60000) || !isPlainObject(payload)) return;
+        const newName = cleanUsername(payload.newName);
+        if (newName && newName !== socket.username && !users[newName]) {
+            const oldName = socket.username;
+            users[newName] = { ...users[socket.username], username: newName };
+            delete users[socket.username];
+            socket.username = newName;
+            sockets[newName] = socket.id;
+            const player = gameState.players[socket.id];
+            if (player) player.name = newName;
+            delete sockets[oldName];
+            saveUsers();
+        }
+    });
+    socket.on("changePassword", (payload) => {
+        if (!socket.username || !rateLimit(socket, 'changePassword', 3, 60000) || !isPlainObject(payload)) return;
+        const newPass = typeof payload.newPass === 'string' ? payload.newPass.trim() : '';
+        if (newPass.length >= 8 && newPass.length <= MAX_PASSWORD_LENGTH) {
+            users[socket.username].password = hashPassword(newPass);
             saveUsers();
         }
     });
-    socket.on("changePassword", ({
-        username,
-        newPass
-    }) => {
-        if (users[username]) {
-            users[username].password = newPass;
+    socket.on("changeColor", (payload) => {
+        if (!socket.username || !rateLimit(socket, 'changeColor', 10, 60000) || !isPlainObject(payload)) return;
+        if (typeof payload.color === 'string' && /^#[0-9a-f]{6}$/i.test(payload.color)) {
+            users[socket.username].color = payload.color;
             saveUsers();
         }
     });
-    socket.on("changeColor", ({
-        username,
-        color
-    }) => {
-        if (users[username]) {
-            users[username].color = color;
-            saveUsers();
-        }
-    });
-    socket.on("changePhoto", ({
-        username,
-        photo
-    }) => {
-        if (users[username]) {
-            users[username].photo = photo;
+    socket.on("changePhoto", (payload) => {
+        if (!socket.username || !rateLimit(socket, 'changePhoto', 5, 60000) || !isPlainObject(payload)) return;
+        if (typeof payload.photo === 'string' && payload.photo.length <= 512 && /^https:\/\//i.test(payload.photo)) {
+            users[socket.username].photo = payload.photo;
             saveUsers();
         }
     });
 
-    socket.on('playerInput', (inputData) => {
-        const player = gameState.players[socket.id];
-        if (player && player.input) {
-            player.input.movement = inputData.movement;
-            player.rotation = inputData.rotation;
-            if (inputData.worldMouse) player.input.worldMouse = inputData.worldMouse;
-        }
-    });
+    socket.on('playerInput', (inputData) => {
+        const player = authenticatedPlayer(socket);
+        if (!player || !player.input || !isPlainObject(inputData) || !rateLimit(socket, 'playerInput', 120, 1000)) return;
+        const movement = isPlainObject(inputData.movement) ? inputData.movement : {};
+        player.input.movement = {
+            up: movement.up === true,
+            down: movement.down === true,
+            left: movement.left === true,
+            right: movement.right === true
+        };
+        if (isFiniteNumber(inputData.rotation)) player.rotation = Math.max(-Math.PI, Math.min(Math.PI, inputData.rotation));
+        if (isPlainObject(inputData.worldMouse) && isFiniteNumber(inputData.worldMouse.x) && isFiniteNumber(inputData.worldMouse.y)) {
+            player.input.worldMouse = {
+                x: Math.max(0, Math.min(WORLD_WIDTH, inputData.worldMouse.x)),
+                y: Math.max(0, Math.min(WORLD_HEIGHT, inputData.worldMouse.y))
+            };
+        }
+    });
 
-    socket.on('rotateCarriedObject', (direction) => {
-        const player = gameState.players[socket.id];
-        if (player && player.carryingObject) {
+    socket.on('rotateCarriedObject', (direction) => {
+        const player = authenticatedPlayer(socket);
+        if (player && player.carryingObject && validDirection(direction) && rateLimit(socket, 'rotateCarriedObject', 30, 1000)) {
             const amount = (Math.PI / 40) * (direction === 'left' ? -1 : 1);
             player.carryingObject.rotation += amount;
         }
     });
 
     socket.on('chooseFunction', (func) => {
-        const player = gameState.players[socket.id];
+        const player = authenticatedPlayer(socket);
+        if (!player || !rateLimit(socket, 'chooseFunction', 5, 10000) || typeof func !== 'string') return;
         const cost = FUNCTION_COSTS[func];
         if (gameState.gamePhase === 'running' && player && player.activeFunction === ' ' && cost !== undefined && player.gems >= cost && !gameState.takenFunctions.includes(func)) {
             player.gems = Math.max(0, player.gems - cost);
@@ -1831,7 +1962,8 @@ if (oldSocketId && oldSocketId !== socket.id) {
     });
 
     socket.on('buyZombieAbility', (abilityId) => {
-        const player = gameState.players[socket.id];
+        const player = authenticatedPlayer(socket);
+    if (!player || !rateLimit(socket, 'buyZombieAbility', 5, 10000) || typeof abilityId !== 'string') return;
         const cost = ZOMBIE_ABILITY_COSTS[abilityId];
         if (player && player.role === 'zombie' && !player.zombieAbility && cost !== undefined && player.gems >= cost) {
             removeGems(player, cost);
@@ -1845,10 +1977,10 @@ if (oldSocketId && oldSocketId !== socket.id) {
     });
 
     socket.on('buyItem', (itemId) => {
-        const player = gameState.players[socket.id];
-        if (!player) return;
+        const player = authenticatedPlayer(socket);
+        if (!player || player.role !== 'human' || !rateLimit(socket, 'buyItem', 10, 10000) || typeof itemId !== 'string') return;
         const currentItemCount = player.inventory.filter(i => i && i.id !== 'card').length;
-        if (currentItemCount >= player.inventorySlots) return;
+        if (currentItemCount >= player.inventorySlots || player.inventory.some(i => i && i.id === itemId)) return;
 
         let cost, itemData;
         switch (itemId) {
@@ -1907,8 +2039,10 @@ if (oldSocketId && oldSocketId !== socket.id) {
     });
 
     socket.on('buyRareItem', (itemId) => {
-        const player = gameState.players[socket.id];
+        const player = authenticatedPlayer(socket);
+    if (!player || !rateLimit(socket, 'buyRareItem', 10, 10000) || typeof itemId !== 'string') return;
         if (!player || !player.inventory.some(i => i.id === 'card')) return;
+        if (itemId !== 'inventoryUpgrade' && player.inventory.some(i => i && i.id === itemId)) return;
         if (itemId !== 'inventoryUpgrade' && player.inventory.filter(i => i && i.id !== 'card').length >= player.inventorySlots) return;
 
         let cost, itemData;
@@ -1989,8 +2123,14 @@ if (oldSocketId && oldSocketId !== socket.id) {
     });
 
     socket.on('playerAction', (actionData) => {
-        const player = gameState.players[socket.id];
-        if (!player) return;
+        const player = authenticatedPlayer(socket);
+        if (!player || !isPlainObject(actionData) || typeof actionData.type !== 'string' || !rateLimit(socket, 'playerAction', 30, 1000)) return;
+        const allowedActions = new Set([
+            'toggle_angel_wings_flight', 'use_antidote', 'use_magic_antidote',
+            'place_portal', 'select_slot', 'zombie_teleport', 'zombie_item',
+            'drop_grenade', 'primary_action', 'function', 'drop_item', 'interact'
+        ]);
+        if (!allowedActions.has(actionData.type)) return;
 
         if (player.isHidden && actionData.type !== 'interact') {
             return;
@@ -2410,11 +2550,12 @@ if (oldSocketId && oldSocketId !== socket.id) {
     });
 
     socket.on('sendMessage', (text) => {
-        const player = gameState.players[socket.id];
-        if (player && text && text.trim().length > 0) {
+        const player = authenticatedPlayer(socket);
+        if (player && rateLimit(socket, 'sendMessage', 8, 10000) && typeof text === 'string' && text.trim().length > 0) {
+            const safeText = text.trim().slice(0, MAX_CHAT_LENGTH);
             io.emit('newMessage', {
                 name: player.name,
-                text: text.substring(0, 40),
+                text: safeText,
                 isZombie: player.role === 'zombie'
             });
         }
@@ -2423,7 +2564,8 @@ if (oldSocketId && oldSocketId !== socket.id) {
 
     socket.on('disconnect', () => {
         console.log('Player disconnected:', socket.id);
-        if (socket.username) delete sockets[socket.username];
+    socketLimits.delete(socket.id);
+        if (socket.username && sockets[socket.username] === socket.id) delete sockets[socket.username];
         const player = gameState.players[socket.id];
         if (player) {
             const playerBody = world.bodies.find(b => b.playerId === socket.id);
@@ -2539,8 +2681,10 @@ setInterval(() => {
 
 setInterval(() => {
     updateGameState();
-    io.emit('gameStateUpdate', gameState);
-}, TICK_RATE);
+    for (const socket of io.sockets.sockets.values()) {
+        if (socket.username) socket.emit('gameStateUpdate', buildClientState(socket));
+    }
+}, 50);
 
 function startNewRound() {
     const persistentData = {};

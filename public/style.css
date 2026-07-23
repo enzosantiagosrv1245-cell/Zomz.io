@@ -423,3 +423,11 @@ canvas {
       cursor: pointer;
       transition: background-color 0.2s;
 }
+#languageSelector {
+  margin: 14px 0 4px;
+  padding: 8px 12px;
+  border: 1px solid #4a4a4e;
+  border-radius: 5px;
+  background: #1e1e22;
+  color: #fff;
+}
