@@ -233,6 +233,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const user = usernameInput.value.trim();
         const pass = passwordInput.value.trim();
         if (!user || !pass) return showNotification("⚠️ Preencha todos os campos!", "red");
+        if (user.length < 3 || user.length > 24) return showNotification("O nome deve ter entre 3 e 24 caracteres.", "red");
+        if (pass.length < 8 || pass.length > 128) return showNotification("A senha deve ter entre 8 e 128 caracteres.", "red");
         socket.emit("register", {
             username: user,
             password: pass

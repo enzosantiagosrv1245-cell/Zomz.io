@@ -103,8 +103,8 @@ function isFiniteNumber(value) {
 
 function cleanUsername(value) {
     if (typeof value !== 'string') return null;
-    const username = value.trim();
-    return /^[A-Za-z0-9_]{3,24}$/.test(username) ? username : null;
+    const username = value.trim().replace(/\s+/g, ' ');
+    return /^[\p{L}\p{N}_ ]{3,24}$/u.test(username) ? username : null;
 }
 
 function hashPassword(password) {
