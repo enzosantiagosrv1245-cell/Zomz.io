@@ -172,6 +172,10 @@ socket.on('gameStateUpdate', (serverState) => {
     if (!serverState || typeof serverState !== 'object' || !serverState.players || typeof serverState.players !== 'object') {
         return;
     }
+    if (myId && !serverState.players[myId]) {
+        const localPlayer = Object.values(serverState.players).find(player => player && player.id === myId);
+        if (localPlayer) serverState.players[myId] = localPlayer;
+    }
     if (myId && gameState.players[myId] && serverState.players[myId]) {
         const meBefore = gameState.players[myId];
         const meNow = serverState.players[myId];
@@ -599,7 +603,7 @@ function draw() {
         ctx.fillStyle = 'white';
         ctx.textAlign = 'center';
         ctx.font = '30px Arial';
-        ctx.fillText('Waiting for game state...', canvas.width / 2, canvas.height / 2);
+        ctx.fillText(t('waitingState'), canvas.width / 2, canvas.height / 2);
         return;
     }
 
@@ -1205,7 +1209,7 @@ function drawInstructionsMenu() {
     ctx.textAlign = 'center';
     ctx.font = 'bold 52px "Trebuchet MS", sans-serif';
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillText('Instructions / Instruções', canvas.width / 2, menuY + 80);
+    ctx.fillText(t('instructions'), canvas.width / 2, menuY + 80);
 
     // --- Content ---
     ctx.textAlign = 'left';
@@ -1557,7 +1561,7 @@ function drawLeaderboard() {
     ctx.font = 'bold 15px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('Ranking', boardX + boardWidth / 2, boardY + headerHeight / 2);
+    ctx.fillText(t('ranking'), boardX + boardWidth / 2, boardY + headerHeight / 2);
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
     ctx.fillRect(boardX, boardY + headerHeight, boardWidth, 1);

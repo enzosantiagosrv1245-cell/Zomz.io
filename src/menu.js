@@ -374,6 +374,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     // --- Notificações ---
     function showNotification(text, color = "yellow") {
+        if (typeof window.translateLegacy === 'function') text = window.translateLegacy(text);
         const container = document.createElement("div");
         container.style.position = "fixed";
         container.style.bottom = "20px";
@@ -463,11 +464,13 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // --- Chat DM ---
-    const chatFriendsContainer = document.getElementById("chatFriends");
-    const chatMessagesFloating = document.getElementById("chatMessagesFloating");
-    const chatInputFloating = document.getElementById("chatInputFloating");
-    const sendChatFloating = document.getElementById("sendChatFloating");
+    // --- Friends & Chat UI refs ---
+    const friendsList = document.getElementById("friendsList");
+    const requestsList = document.getElementById("requestsList");
+    const chatFriendsContainer = document.getElementById("chatFriends");
+    const chatMessagesFloating = document.getElementById("chatMessagesFloating");
+    const chatInputFloating = document.getElementById("chatInputFloating");
+    const sendChatFloating = document.getElementById("sendChatFloating");
     let currentChat = null;
     let chatHistory = {};
 
