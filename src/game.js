@@ -183,7 +183,34 @@ socket.on('gameStateUpdate', (serverState) => {
             isMenuOpen = false;
         }
     }
+    
+    socket.on("gameStateUpdate", (serverState) => {
+
+    console.clear();
+
+    console.log("Players recebidos:", Object.keys(serverState.players));
+
+    Object.entries(serverState.players).forEach(([id, p]) => {
+        console.log(id, {
+            username: p.username,
+            x: p.x,
+            y: p.y,
+            hidden: p.isHidden,
+            invisible: p.isInvisible,
+            inDuct: p.isInDuct,
+            eaten: p.isBeingEaten,
+            dead: p.isDead,
+            rotation: p.rotation,
+            width: p.width,
+            height: p.height,
+            color: p.color,
+            skin: p.skin
+        });
+    });
+
     gameState = serverState;
+});
+
 });
 
 socket.on('newMessage', (message) => {
