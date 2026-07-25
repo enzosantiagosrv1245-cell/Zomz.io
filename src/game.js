@@ -183,7 +183,7 @@ socket.on('gameStateUpdate', (serverState) => {
             isMenuOpen = false;
         }
     }
-    
+
     socket.on("gameStateUpdate", (serverState) => {
 
     console.clear();
@@ -207,7 +207,21 @@ socket.on('gameStateUpdate', (serverState) => {
             skin: p.skin
         });
     });
+    
+    console.clear();
 
+console.log("=== PLAYERS ===");
+
+for (const [id, p] of Object.entries(serverState.players)) {
+    console.log({
+        chave: id,
+        playerId: p.id,
+        nome: p.name,
+        username: p.username,
+        x: p.x,
+        y: p.y
+    });
+}
     gameState = serverState;
 });
 
