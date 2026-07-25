@@ -1,5 +1,5 @@
 const DEV_USERNAMES = ['Eddie', 'Mingau', 'SeuNomeAqui'];
-const ARTIST_USERNAMES = ['Harley'];
+const ARTIST_USERNAMES = [];
 
 const express = require('express');
 const http = require('http');
@@ -194,8 +194,8 @@ const SINKING_AREA = {
 };
 
 const SHARK_BASE_SPEED = 1.5;
-const INITIAL_PLAYER_SIZE = 35;
-const INITIAL_PLAYER_SPEED = 3;
+const INITIAL_PLAYER_SIZE = 40;
+const INITIAL_PLAYER_SPEED = 5;
 const MAX_PLAYER_SPEED = 5;
 const PLAYER_ACCELERATION = 1.2;
 const PLAYER_FRICTION = 0.90;
@@ -209,7 +209,7 @@ const SPY_COOLDOWN = 30000;
 const BUTTERFLY_DURATION = 5000;
 const BUTTERFLY_SPEED = 4;
 const INVISIBILITY_CLOAK_BREAK_DISTANCE = 250;
-const SKATEBOARD_SPEED_BOOST = 5;
+const SKATEBOARD_SPEED_BOOST = 4;
 const SKATEBOARD_WIDTH = 90;
 const SKATEBOARD_HEIGHT = 35;
 const DRONE_FOLLOW_FACTOR = 0.05;
