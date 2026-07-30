@@ -637,6 +637,12 @@ function draw() {
     const cameraX = (me.x + me.width / 2) - canvas.width / (2 * zoomLevel);
     const cameraY = (me.y + me.height / 2) - canvas.height / (2 * zoomLevel);
 
+    const cw = canvas.width / zoomLevel;
+    const ch = canvas.height / zoomLevel;
+    const isVisible = (x, y, w = 0, h = 0) => {
+        return (x < cameraX + cw + 100 && x + w > cameraX - 100 && y < cameraY + ch + 100 && y + h > cameraY - 100);
+    };
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
     ctx.scale(zoomLevel, zoomLevel);
@@ -663,6 +669,7 @@ function draw() {
 
     if (gameState.sharks) {
         for (const shark of gameState.sharks) {
+            if (!isVisible(shark.x, shark.y, shark.width, shark.height)) continue;
             if (sharkSprite.complete) {
                 ctx.save();
                 ctx.translate(shark.x + shark.width / 2, shark.y + shark.height / 2);
@@ -688,6 +695,7 @@ function draw() {
     // ALTERADO: Desenha os esconderijos DEPOIS da rua para ficarem por cima
     if (gameState.hidingSpots) {
         for (const spot of gameState.hidingSpots) {
+            if (!isVisible(spot.x, spot.y, spot.width, spot.height)) continue;
             if (hidingSpotSprite.complete) {
                 ctx.drawImage(hidingSpotSprite, spot.x, spot.y, spot.width, spot.height);
             }
@@ -706,6 +714,7 @@ function draw() {
 
     if (gameState.groundItems) {
         for (const item of gameState.groundItems) {
+            if (!isVisible(item.x, item.y, item.width, item.height)) continue;
             const sprite = itemSprites[item.id];
             if (sprite) {
 
@@ -783,6 +792,7 @@ function draw() {
 
     if (gameState.objects) {
         for (const item of gameState.objects) {
+            if (!isVisible(item.x, item.y, item.width, item.height)) continue;
             if (carriedObjectIds.includes(item.uniqueId)) continue;
             const sprite = objectSprites[item.id];
             if (sprite) {
@@ -2240,7 +2250,9 @@ function getZombieAbilitiesTabRect() {
     };
 }
 
-function gameLoop() {
+let networkTickInterval = null;
+
+function sendNetworkInput() {
     if (myId && gameState.players[myId]) {
         const me = gameState.players[myId];
         const rot = getPlayerAngle(me);
@@ -2258,6 +2270,9 @@ function gameLoop() {
             worldMouse: worldMouse
         });
     }
+}
+
+function gameLoop() {
     draw();
     drawLeaderboard();
     requestAnimationFrame(gameLoop);
@@ -2266,5 +2281,8 @@ function gameLoop() {
 // gameLoop();
 
 function startGame() {
+    if (!networkTickInterval) {
+        networkTickInterval = setInterval(sendNetworkInput, 1000 / 30); // 30Hz network tick
+    }
     gameLoop();
 }
