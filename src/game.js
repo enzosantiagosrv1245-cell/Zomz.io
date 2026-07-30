@@ -190,8 +190,6 @@ socket.on('gameStateUpdate', (serverState) => {
     
     console.clear();
 
-console.log("=== PLAYERS ===");
-
 for (const [id, p] of Object.entries(serverState.players)) {
     console.log({
         chave: id,
