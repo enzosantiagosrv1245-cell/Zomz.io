@@ -196,7 +196,7 @@ socket.on('newMessage', (message) => {
     if (chatMessages.length > MAX_MESSAGES) {
         chatMessages.shift();
     }
-});
+}));
 
 socket.on('toggleIdDisplay', (data) => {
     showPlayerIds = !!(data && data.enabled === true);
