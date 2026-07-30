@@ -186,12 +186,9 @@ socket.on('gameStateUpdate', (serverState) => {
         if (meBefore.role !== 'zombie' && meNow.role === 'zombie' && !meNow.butterflyUsed) {
             isMenuOpen = false;
         }
-    }
-    
-    console.clear();
+    }},
 
 
-    gameState = serverState;
 
 
 socket.on('newMessage', (message) => {
