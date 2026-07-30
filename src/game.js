@@ -1,9 +1,8 @@
-
 const DEV_USERNAMES = ['Eddie', 'Mingau', 'SeuNomeAqui'];
 const ARTIST_USERNAMES = ['Harley'];
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-// const socket = io(); // Assuming socket is initialized in HTML
+// const socket = io(); // agora inicia no html msm
 
 
 (function setup() {
@@ -14,7 +13,7 @@ const ctx = canvas.getContext('2d');
         margin: '0',
         overflow: 'hidden'
     });
-    // Estilos do chatInput foram movidos para o style.css para melhor organização
+    // Estilos do chatInput foram movidos para o style.css pra melhorar a organização
     chatInput.maxLength = 57;
 
     function resizeCanvas() {
@@ -35,7 +34,7 @@ const human = loadImage('Sprites/Human.png');
 const zombie = loadImage('Sprites/Zombie.png');
 const box = loadImage('Sprites/Box.png');
 const grass = loadImage('Sprites/Grass.png');
-const grass2 = loadImage('Sprites/Grass2.png'); // NOVO: Carrega a imagem da Grass2
+const grass2 = loadImage('Sprites/Grass2.png'); 
 const street = loadImage('Sprites/Street.png');
 const sand = loadImage('Sprites/Sand.png');
 const sea = loadImage('Sprites/Sea.png');
@@ -45,7 +44,7 @@ const ductSprite = loadImage('Sprites/Duct.png');
 const atmSprite = loadImage('Sprites/ATM.png');
 const cardSprite = loadImage('Sprites/Card.png');
 const floors = loadImage('Sprites/Floor.png');
-const floor2 = loadImage('Sprites/Floor2.png'); // NOVO: Carrega a imagem do novo chão
+const floor2 = loadImage('Sprites/Floor2.png'); 
 const garageFloor = loadImage('Sprites/garageFloor.png');
 const smallBed = loadImage('Sprites/smallBed.png');
 const bigTable = loadImage('Sprites/bigTable.png');
@@ -56,7 +55,7 @@ const grenadeSprite = loadImage('Sprites/Grenade.png');
 const invisibilityCloakSprite = loadImage('Sprites/InvisibilityCloak.png');
 const antidoteSprite = loadImage('Sprites/Antidote.png');
 const magicAntidoteSprite = loadImage('Sprites/MagicAntidote.png');
-const magicEggSprite = loadImage('Sprites/MagicEgg.png'); // NOVO: Carrega a imagem do Magic Egg
+const magicEggSprite = loadImage('Sprites/MagicEgg.png');
 const trapSprite = loadImage('Sprites/Trap.png');
 const mineSprite = loadImage('Sprites/Mine.png');
 const gravityGloveSprite = loadImage('Sprites/GravityGlove.png');
@@ -68,8 +67,8 @@ const inventoryUpgradeSprite = loadImage('Sprites/Slot.png');
 const runningTennisSprite = loadImage('Sprites/runningTennis.png');
 const bowSprite = loadImage('Sprites/Bow.png');
 const arrowSprite = loadImage('Sprites/Arrow.png');
-const blowdartSprite = loadImage('Sprites/Blowdart.png'); // NOVO: Sprite do Blowdart
-const blowdartArrowSprite = loadImage('Sprites/BlowdartArrow.png'); // NOVO: Sprite da flecha do Blowdart
+const blowdartSprite = loadImage('Sprites/Blowdart.png');
+const blowdartArrowSprite = loadImage('Sprites/BlowdartArrow.png');
 const sharkSprite = loadImage('Sprites/Shark.png');
 const gemSprite = loadImage('Sprites/Gem.png');
 const angelWingsSprite = loadImage('Sprites/AngelWings.png');
@@ -93,7 +92,7 @@ const itemSprites = {
     card: cardSprite,
     antidote: antidoteSprite,
     magicAntidote: magicAntidoteSprite,
-    magicEgg: magicEggSprite, // NOVO: Adiciona o sprite do Magic Egg
+    magicEgg: magicEggSprite, 
     normalGlove: GloveSprite,
     gravityGlove: gravityGloveSprite,
     grenade: grenadeSprite,
@@ -102,7 +101,7 @@ const itemSprites = {
     inventoryUpgrade: inventoryUpgradeSprite,
     runningTennis: runningTennisSprite,
     bow: bowSprite,
-    blowdart: blowdartSprite, // NOVO: Adiciona o sprite do Blowdart
+    blowdart: blowdartSprite, 
     angelWings: angelWingsSprite,
     fishingRod: fishingRodSprite
 };
@@ -127,7 +126,7 @@ let myId = null;
 let gameState = {
     players: {},
     arrows: [],
-    blowdartArrows: [], // NOVO: Array para flechas do Blowdart
+    blowdartArrows: [],
     sharks: [],
     timeLeft: 120,
     startTime: 60,
@@ -162,11 +161,16 @@ const chatInput = document.getElementById('chatInput');
 let isChatting = false;
 let chatMessages = [];
 const MAX_MESSAGES = 20;
+let showPlayerIds = false;
 
 socket.on('connect', () => {
     myId = socket.id;
-    // The login screen from your HTML should handle user identification now.
 });
+
+// Garante que myId seja definido mesmo se connect já disparou
+if (socket.connected) {
+    myId = socket.id;
+}
 
 socket.on('gameStateUpdate', (serverState) => {
     if (!serverState || typeof serverState !== 'object' || !serverState.players || typeof serverState.players !== 'object') {
@@ -183,30 +187,6 @@ socket.on('gameStateUpdate', (serverState) => {
             isMenuOpen = false;
         }
     }
-
-    socket.on("gameStateUpdate", (serverState) => {
-
-    console.clear();
-
-    console.log("Players recebidos:", Object.keys(serverState.players));
-
-    Object.entries(serverState.players).forEach(([id, p]) => {
-        console.log(id, {
-            username: p.username,
-            x: p.x,
-            y: p.y,
-            hidden: p.isHidden,
-            invisible: p.isInvisible,
-            inDuct: p.isInDuct,
-            eaten: p.isBeingEaten,
-            dead: p.isDead,
-            rotation: p.rotation,
-            width: p.width,
-            height: p.height,
-            color: p.color,
-            skin: p.skin
-        });
-    });
     
     console.clear();
 
@@ -225,13 +205,16 @@ for (const [id, p] of Object.entries(serverState.players)) {
     gameState = serverState;
 });
 
-});
 
 socket.on('newMessage', (message) => {
     chatMessages.push(message);
     if (chatMessages.length > MAX_MESSAGES) {
         chatMessages.shift();
     }
+});
+
+socket.on('toggleIdDisplay', (data) => {
+    showPlayerIds = !!(data && data.enabled === true);
 });
 
 window.addEventListener('keydown', function(event) {
@@ -261,13 +244,13 @@ window.addEventListener('keydown', function(event) {
     }
 
     const me = gameState.players[myId];
-    if (!me) return; // AQUI, depois do enter/escape
+    if (!me) return;
     if (isChatting) {
         return;
     }
 
     if (key === 'b') {
-        if (me) { // 'me' é a variável do seu jogador
+        if (me) { // 'me' é a variável do jogador
             isMenuOpen = !isMenuOpen;
             if (isMenuOpen) {
                 if (me.role === 'zombie') {
@@ -484,7 +467,6 @@ if (isMenuOpen) {
     const me = gameState.players[myId];
     if (!me) return;
 
-        // NOVO: Lógica para fechar a loja no 'X'
         const menuWidth = 1500,
             menuHeight = 900;
         const menuX = (canvas.width - menuWidth) / 2,
@@ -969,16 +951,20 @@ function draw() {
         }
     }
 
+    const iAmZombie = me && me.role === 'zombie';
     for (const playerId in gameState.players) {
         const player = gameState.players[playerId];
         if (player.isInDuct || player.isBeingEaten) continue;
-        if (player.isHidden || (player.isInvisible && playerId !== myId)) {
+        if (player.isHidden || (player.isInvisible && playerId !== myId && iAmZombie)) {
             continue;
         }
 
         const hasAngelWings = player.inventory && player.inventory.some(i => i && i.id === 'angelWings');
 
         ctx.save();
+        if (player.isAdminInvisible && playerId !== myId) {
+            ctx.globalAlpha = 0.3;
+        }
         if (player.isFlyingWithWings) {
             ctx.shadowColor = 'rgba(255, 255, 200, 0.9)';
             ctx.shadowBlur = 50;
@@ -1009,6 +995,15 @@ function draw() {
             ctx.drawImage(zombie, -player.width / 2, -player.height / 2, player.width, player.height);
         } else {
             ctx.drawImage(human, -player.width / 2, -player.height / 2, player.width, player.height);
+        }
+
+        if (player.isAdminInvisible && playerId !== myId) {
+            ctx.save();
+            ctx.globalAlpha = 1;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(-player.width / 2, -player.height / 2, player.width, player.height);
+            ctx.restore();
         }
 
         if (hasAngelWings && angelWingsSprite.complete) {
@@ -1042,7 +1037,7 @@ function draw() {
 
         ctx.restore();
 
-        if (!player.isHidden && !player.isInvisible) {
+        if (!player.isHidden && !(player.isInvisible && playerId !== myId && iAmZombie)) {
             const isDev = player.isDev;
             const isArtist = ARTIST_USERNAMES.includes(player.name);
             const nameX = player.x + player.width / 2;
@@ -1077,6 +1072,7 @@ if (isDev) {
     ctx.fillStyle = (player.role === 'zombie' || player.isSpying) ? '#2ecc71' : 'white';
     ctx.fillText(player.name, nameX, nameY);
 }
+    }
     }
 
     if (gameState.floatingTexts) {
@@ -1212,12 +1208,12 @@ if (isDev) {
     if (isInstructionsOpen) {
         drawInstructionsMenu();
     }
-    }}
+}
 
 
 function drawProfile() {
-    // Este é um placeholder para a interface do perfil.
-    // Você pode adicionar o código para desenhar a tela de perfil aqui.
+    //  placeholder para a interface do perfil.
+    // pode adicionar o código para desenhar a tela de perfil aqui.
 }
 
 function drawInstructionsMenu() {
@@ -1226,7 +1222,7 @@ function drawInstructionsMenu() {
     const menuX = (canvas.width - menuWidth) / 2;
     const menuY = (canvas.height - menuHeight) / 2;
 
-    // Background
+    // fundo
     ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
     ctx.strokeStyle = '#555';
     ctx.lineWidth = 5;
@@ -1235,7 +1231,7 @@ function drawInstructionsMenu() {
     ctx.fill();
     ctx.stroke();
 
-    // Close Button (X)
+    // fechar menu de instrução (X)
     const closeButtonSize = 40;
     const closeButtonPadding = 20;
     const closeX = menuX + menuWidth - closeButtonSize - closeButtonPadding;
@@ -1246,18 +1242,17 @@ function drawInstructionsMenu() {
     ctx.textBaseline = 'middle';
     ctx.fillText('X', closeX + closeButtonSize / 2, closeY + closeButtonSize / 2);
 
-    // Title
+    // Título
     ctx.textAlign = 'center';
     ctx.font = 'bold 52px "Trebuchet MS", sans-serif';
     ctx.fillStyle = '#FFFFFF';
     ctx.fillText(t('instructions'), canvas.width / 2, menuY + 80);
 
-    // --- Content ---
+    // conteúdo
     ctx.textAlign = 'left';
     const contentX = menuX + 60;
     let currentY = menuY + 180;
 
-    // Objective Section
     ctx.font = 'bold 28px "Trebuchet MS", sans-serif';
     ctx.fillStyle = '#FFFFFF';
     ctx.fillText('Objective / Objetivo', contentX, currentY);
@@ -1278,7 +1273,7 @@ function drawInstructionsMenu() {
     ctx.fillText('•Zumbis: Infecte todos os humanos antes que o tempo acabe.', contentX, currentY);
     currentY += 80;
 
-    // Controls Section
+    // Seção de controles
     ctx.font = 'bold 28px "Trebuchet MS", sans-serif';
     ctx.fillStyle = '#FFFFFF';
     ctx.fillText('Controls / Controles', contentX, currentY);
@@ -1622,7 +1617,9 @@ function drawLeaderboard() {
 
         const isDev = player.isDev;
         const isArtist = player.isArtist;
-        const displayName = isDev ? '⚙️ ' + player.name : isArtist ? '🎨 ' + player.name : player.name;
+        const iAmMod = me && me.isDev;
+        const baseName = (showPlayerIds && iAmMod && player.numericId !== undefined) ? `${player.name}#${player.numericId}` : player.name;
+        const displayName = isDev ? '⚙️ ' + baseName : isArtist ? '🎨 ' + baseName : baseName;
         let name = displayName;
         while (ctx.measureText(name).width > 110 && name.length > 3) {
             name = name.slice(0, -1);
@@ -1675,7 +1672,7 @@ function drawZombieMenu(me) {
     ctx.lineWidth = 5;
     ctx.strokeRect(menuX, menuY, menuWidth, menuHeight);
 
-    // NOVO: Botão 'X' para fechar
+//botão x pra fechar
     const closeButtonSize = 40;
     const closeButtonPadding = 20;
     const closeX = menuX + menuWidth - closeButtonSize - closeButtonPadding;
@@ -1769,21 +1766,6 @@ function drawHumanMenu(me) {
     ctx.fillRect(menuX, menuY, menuWidth, menuHeight);
     ctx.lineWidth = 5;
     ctx.strokeRect(menuX, menuY, menuWidth, menuHeight);
-
-    // NOVO: Botão 'X' para fechar
-    const closeButtonSize = 40;
-    const closeButtonPadding = 20;
-    const closeX = menuX + menuWidth - closeButtonSize - closeButtonPadding;
-    const closeY = menuY + closeButtonPadding;
-    ctx.font = 'bold 40px Arial';
-    ctx.fillStyle = '#FFF';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('X', closeX + closeButtonSize / 2, closeY + closeButtonSize / 2);
-
-    ctx.font = '30px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
 
     // ALTERADO: Desenha as abas condicionalmente com a cor correta
     if (isNearATM) {

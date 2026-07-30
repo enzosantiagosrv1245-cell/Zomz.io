@@ -1,4 +1,4 @@
-const DEV_USERNAMES = ['Eddie', 'Mingau', 'SeuNomeAqui'];
+const DEV_USERNAMES = ['Eddie', 'Mingau', 'SeuNomeAqui', 'Jackwan'];
 const ARTIST_USERNAMES = [];
 
 const express = require('express');
@@ -77,15 +77,81 @@ function saveLinks() {
 function buildClientState(socket) {
     const clientPlayers = {};
     for (const [id, player] of Object.entries(gameState.players || {})) {
-        if (id !== socket.id && (player.isHidden || player.isInvisible)) continue;
+        if (player.isHidden) continue;
+        if (player.isAdminInvisible && id !== socket.id) {
+            const viewer = gameState.players[socket.id];
+            if (!viewer || !viewer.isDev) continue;
+        }
+        if (player.isInvisible && id !== socket.id) {
+            const me = gameState.players[socket.id];
+            if (me && me.role === 'zombie') continue;
+        }
         const { input, physicalHitbox, ...safePlayer } = player;
         clientPlayers[id] = safePlayer;
     }
     return { ...gameState, players: clientPlayers };
 }
-
 function generateID() {
     return `ID${crypto.randomBytes(12).toString('hex')}`;
+}
+
+function sendCommandReply(socket, text) {
+    socket.emit('newMessage', {
+        name: 'Server',
+        text: String(text).slice(0, MAX_CHAT_LENGTH),
+        isZombie: false
+    });
+}
+
+function findPlayerByNumericId(numericId) {
+    for (const player of Object.values(gameState.players || {})) {
+        if (player.numericId === numericId) return player;
+    }
+    return null;
+}
+
+function handleChatCommand(socket, player, raw) {
+    if (!rateLimit(socket, 'chatCommand', 10, 10000)) return;
+
+    if (/^\/iv\b/i.test(raw)) {
+        if (!player.isDev) {
+            sendCommandReply(socket, 'You do not have permission to use this command.');
+            return;
+        }
+        const match = raw.match(/^\/iv (on|off) P:(\d+)$/i);
+        if (!match) {
+            sendCommandReply(socket, 'Usage: /iv on P:<playerId> or /iv off P:<playerId>');
+            return;
+        }
+        const mode = match[1].toLowerCase();
+        const targetId = parseInt(match[2], 10);
+        const targetPlayer = findPlayerByNumericId(targetId);
+        if (!targetPlayer) {
+            sendCommandReply(socket, `Invalid player ID: ${targetId}.`);
+            return;
+        }
+        targetPlayer.isAdminInvisible = mode === 'on';
+        sendCommandReply(socket, `Player ${targetPlayer.name} (P:${targetId}) invisibility turned ${mode}.`);
+        return;
+    }
+
+    if (/^\/ids\b/i.test(raw)) {
+        if (!player.isDev) {
+            sendCommandReply(socket, 'You do not have permission to use this command.');
+            return;
+        }
+        const match = raw.match(/^\/ids (on|off)$/i);
+        if (!match) {
+            sendCommandReply(socket, 'Usage: /ids on or /ids off');
+            return;
+        }
+        const mode = match[1].toLowerCase();
+        socket.emit('toggleIdDisplay', { enabled: mode === 'on' });
+        sendCommandReply(socket, `Player ID display turned ${mode}.`);
+        return;
+    }
+
+    sendCommandReply(socket, 'Unknown command.');
 }
 
 const socketLimits = new Map();
@@ -167,7 +233,8 @@ let nextArrowId = 0,
     nextGrenadeId = 0,
     nextTrapId = 0,
     nextMineId = 0,
-    nextUniqueObjectId = 0;
+    nextUniqueObjectId = 0,
+    nextNumericPlayerId = 1;
 
 const WORLD_WIDTH = 6000;
 const WORLD_HEIGHT = 4000;
@@ -761,14 +828,23 @@ function isCollidingCircleCircle(c1, c2) {
     const distance = Math.sqrt(dx * dx + dy * dy);
     return distance < c1.radius + c2.radius;
 }
+function getSpawnPosition() {
+    const spread = 150; // ajuste esse valor pra controlar o quão "espalhados" eles nascem
+    return {
+        x: WORLD_WIDTH / 2 + 500 + (Math.random() - 0.5) * spread,
+        y: WORLD_HEIGHT / 2 + (Math.random() - 0.5) * spread
+    };
+}
 
 function createNewPlayer(socket) {
-    const startX = WORLD_WIDTH / 2 + 500;
-    const startY = WORLD_HEIGHT / 2;
+    const spawnPos = getSpawnPosition();
+    const startX = spawnPos.x;
+    const startY = spawnPos.y;
 
     const player = {
         name: `Player${Math.floor(100 + Math.random() * 900)}`,
         id: socket.id,
+        numericId: nextNumericPlayerId++,
         x: startX,
         y: startY,
         vx: 0,
@@ -801,6 +877,7 @@ function createNewPlayer(socket) {
         angelWingsFlightEndsAt: 0,
         teleportCooldownUntil: 0,
         isInvisible: false,
+        isAdminInvisible: false,
         zombieAbility: null,
         trapsLeft: 0,
         minesLeft: 0,
@@ -2553,6 +2630,10 @@ if (oldSocketId && oldSocketId !== socket.id) {
         const player = authenticatedPlayer(socket);
         if (player && rateLimit(socket, 'sendMessage', 8, 10000) && typeof text === 'string' && text.trim().length > 0) {
             const safeText = text.trim().slice(0, MAX_CHAT_LENGTH);
+            if (safeText.startsWith('/')) {
+                handleChatCommand(socket, player, safeText);
+                return;
+            }
             io.emit('newMessage', {
                 name: player.name,
                 text: safeText,
@@ -2680,12 +2761,11 @@ setInterval(() => {
 }, 1000);
 
 setInterval(() => {
-    updateGameState();
+    updateGameState();
     for (const socket of io.sockets.sockets.values()) {
-        if (socket.username) socket.emit('gameStateUpdate', buildClientState(socket));
+        socket.emit('gameStateUpdate', buildClientState(socket));
     }
 }, 50);
-
 function startNewRound() {
     const persistentData = {};
     const exclusiveItems = ['skateboard', 'drone', 'invisibilityCloak', 'gravityGlove', 'portals', 'cannon', 'bow', 'blowdart', 'angelWings', 'magicEgg'];
@@ -2751,10 +2831,7 @@ function startNewRound() {
         player.originalSpeed = Math.max(3, player.originalSpeed);
 
         const playerBody = world.bodies.find(b => b.playerId === id);
-        const startPos = {
-            x: WORLD_WIDTH / 2 + 500,
-            y: WORLD_HEIGHT / 2
-        };
+        const startPos = getSpawnPosition();
         player.x = startPos.x;
         player.y = startPos.y;
 
@@ -2836,6 +2913,7 @@ function startNewRound() {
         gameState.runningTennis.y = spawnY;
     }
 }
+
 
 server.listen(PORT, () => {
     initializeGame();
