@@ -121,6 +121,11 @@ const objectSprites = {
     park_bench: parkBenchSprite,
     pool_table: poolTableSprite
 };
+// OTIMIZAÇÃO 7: valores fixos, calculados uma única vez em vez de a cada frame
+const SUNSHADE_RECT_1 = { x: 4350, y: 600, width: 320, height: 340 };
+const SUNSHADE_RECT_2 = { x: 4440, y: 1400, width: 320, height: 340 };
+const MIRRORED_SUNSHADE_RECT_1 = { ...SUNSHADE_RECT_1, y: 4000 - SUNSHADE_RECT_1.y - SUNSHADE_RECT_1.height };
+const MIRRORED_SUNSHADE_RECT_2 = { ...SUNSHADE_RECT_2, y: 4000 - SUNSHADE_RECT_2.y - SUNSHADE_RECT_2.height };
 
 let myId = null;
 let gameState = {
@@ -1092,48 +1097,6 @@ if (isDev) {
     }
 
     // ALTERADO: Lógica para desenhar os guarda-sóis e suas versões espelhadas
-    const sunshadeRect1 = {
-        x: 4350,
-        y: 600,
-        width: 320,
-        height: 340
-    };
-    const sunshadeRect2 = {
-        x: 4440,
-        y: 1400,
-        width: 320,
-        height: 340
-    };
-    const meRect = {
-        x: me.x,
-        y: me.y,
-        width: me.width,
-        height: me.height
-    };
-
-    ctx.save();
-    const isUnderSunshade1 = meRect.x < sunshadeRect1.x + sunshadeRect1.width && meRect.x + meRect.width > sunshadeRect1.x && meRect.y < sunshadeRect1.y + sunshadeRect1.height && meRect.y + meRect.height > sunshadeRect1.y;
-    if (isUnderSunshade1) {
-        ctx.globalAlpha = 0.4;
-    }
-    ctx.drawImage(sunshadeII, sunshadeRect1.x, sunshadeRect1.y, sunshadeRect1.width, sunshadeRect1.height);
-    ctx.restore();
-
-    ctx.save();
-    const isUnderSunshade2 = meRect.x < sunshadeRect2.x + sunshadeRect2.width && meRect.x + meRect.width > sunshadeRect2.x && meRect.y < sunshadeRect2.y + sunshadeRect2.height && meRect.y + meRect.height > sunshadeRect2.y;
-    if (isUnderSunshade2) {
-        ctx.globalAlpha = 0.4;
-    }
-    ctx.drawImage(sunshade, sunshadeRect2.x, sunshadeRect2.y, sunshadeRect2.width, sunshadeRect2.height);
-    ctx.restore();
-
-    // Guarda-sóis espelhados
-    const mirroredSunshadeRect1 = { ...sunshadeRect1,
-        y: 4000 - sunshadeRect1.y - sunshadeRect1.height
-    };
-    const mirroredSunshadeRect2 = { ...sunshadeRect2,
-        y: 4000 - sunshadeRect2.y - sunshadeRect2.height
-    };
 
     ctx.save();
     const isUnderMirroredSunshade1 = meRect.x < mirroredSunshadeRect1.x + mirroredSunshadeRect1.width && meRect.x + meRect.width > mirroredSunshadeRect1.x && meRect.y < mirroredSunshadeRect1.y + mirroredSunshadeRect1.height && meRect.y + meRect.height > mirroredSunshadeRect1.y;
