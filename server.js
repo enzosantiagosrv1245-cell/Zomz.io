@@ -1095,6 +1095,11 @@ function updateGameState() {
         }
     }
 
+    // OTIMIZAÇÃO 6: array de jogadores cacheada 1x por tick.
+    // Nenhum loop abaixo adiciona/remove jogadores de gameState.players,
+    // apenas altera propriedades dos jogadores já existentes.
+    const playersArray = Object.values(gameState.players);
+
     // OTIMIZAÇÃO 2: mapa uniqueId -> objeto/bola, construído 1x por tick em vez de
     // usar .find() em gameState.objects e gameState.largeBalls para cada corpo físico.
     const uniqueIdMap = new Map();
@@ -1443,10 +1448,10 @@ function updateGameState() {
         }
     }
 
-    for (const human of Object.values(gameState.players)) {
+    for (const human of playersArray) {
         if (human.isInvisible) {
             let isVisible = false;
-            for (const zombie of Object.values(gameState.players)) {
+            for (const zombie of playersArray) {
                 if (zombie.role === 'zombie' && zombie.id !== human.id) {
                     const distance = Math.hypot(human.x - zombie.x, human.y - zombie.y);
                     if (distance < INVISIBILITY_CLOAK_BREAK_DISTANCE) {
@@ -1578,7 +1583,7 @@ function updateGameState() {
     for (let i = gameState.grenades.length - 1; i >= 0; i--) {
         const grenade = gameState.grenades[i];
         if (now > grenade.explodeTime) {
-            for (const player of Object.values(gameState.players)) {
+            for (const player of playersArray) {
                 const playerCenterX = player.x + player.width / 2;
                 const playerCenterY = player.y + player.height / 2;
                 const distance = Math.hypot(playerCenterX - grenade.x, playerCenterY - grenade.y);
@@ -1595,7 +1600,7 @@ function updateGameState() {
 
     for (let i = gameState.traps.length - 1; i >= 0; i--) {
         const trap = gameState.traps[i];
-        for (const player of Object.values(gameState.players)) {
+        for (const player of playersArray) {
             if (player.role === 'human' && !player.isTrapped && Math.hypot(player.x - trap.x, player.y - trap.y) < TRAP_SIZE) {
                 player.isTrapped = true;
                 player.trappedUntil = now + TRAP_DURATION;
@@ -1612,7 +1617,7 @@ function updateGameState() {
         let triggered = false;
         let triggeringPlayer = null;
 
-        for (const player of Object.values(gameState.players)) {
+        for (const player of playersArray) {
             if (player.role === 'zombie') continue;
             if (Math.hypot((player.x + player.width / 2) - (mine.x + mine.width / 2), (player.y + player.height / 2) - (mine.y + mine.height / 2)) < MINE_SIZE) {
                 triggered = true;
@@ -1622,7 +1627,7 @@ function updateGameState() {
         }
 
         if (triggered) {
-            for (const player of Object.values(gameState.players)) {
+            for (const player of playersArray) {
                 const distance = Math.hypot((player.x + player.width / 2) - (mine.x + mine.width / 2), (player.y + player.height / 2) - (mine.y + mine.height / 2));
 
                 if (distance < MINE_EXPLOSION_RADIUS) {
@@ -1653,8 +1658,8 @@ function updateGameState() {
         for (const ownerId in portalsByOwner) {
             if (portalsByOwner[ownerId].length === 2) {
                 const [portalA, portalB] = portalsByOwner[ownerId];
-                for (const player of Object.values(gameState.players)) {
-                    const playerBody = world.bodies.find(b => b.playerId === player.id);
+                for (const player of playersArray) {
+                    const playerBody = playerBodyMap[player.id];
                     if (!playerBody) continue;
 
                     let teleported = false;
