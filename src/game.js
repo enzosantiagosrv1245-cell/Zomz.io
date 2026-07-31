@@ -619,8 +619,6 @@ function draw() {
     const hasGravityGloves = me && me.inventory && me.inventory.find(i => i && i.id === 'gravityGlove');
     const unmovableObjectIds = ['atm'];
 
-    const zoomLevel = 0.67;
-
     const cameraX = (me.x + me.width / 2) - canvas.width / (2 * zoomLevel);
     const cameraY = (me.y + me.height / 2) - canvas.height / (2 * zoomLevel);
 
@@ -775,12 +773,16 @@ function draw() {
         }
     }
 
-    const carriedObjectIds = Object.values(gameState.players).filter(p => p.carryingObject).map(p => p.carryingObject.uniqueId);
+   const carriedObjectIds = new Set();
+    for (const pid in gameState.players) {
+        const p = gameState.players[pid];
+        if (p.carryingObject) carriedObjectIds.add(p.carryingObject.uniqueId);
+    }
 
     if (gameState.objects) {
         for (const item of gameState.objects) {
             if (!isVisible(item.x, item.y, item.width, item.height)) continue;
-            if (carriedObjectIds.includes(item.uniqueId)) continue;
+            if (carriedObjectIds.has(item.uniqueId)) continue;
             const sprite = objectSprites[item.id];
             if (sprite) {
 
@@ -2183,7 +2185,6 @@ function isClickInside(pos, rect) {
 
 function getPlayerAngle(player) {
     if (!player) return 0;
-    const zoomLevel = 0.67;
     const cx = canvas.width / (2 * zoomLevel);
     const cy = canvas.height / (2 * zoomLevel);
     const dx = mouse.x / zoomLevel - cx;

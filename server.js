@@ -76,7 +76,9 @@ function saveLinks() {
 
 function buildClientState(socket) {
     const clientPlayers = {};
-    for (const [id, player] of Object.entries(gameState.players || {})) {
+    const players = gameState.players || {};
+    for (const id in players) {
+        const player = players[id];
         if (player.isHidden) continue;
         if (player.isAdminInvisible && id !== socket.id) {
             const viewer = gameState.players[socket.id];
@@ -1081,594 +1083,608 @@ function updateSharks() {
 
 
 function updateGameState() {
-    const now = Date.now();
-    Matter.Engine.update(engine, TICK_RATE);
-    updateSharks();
-
-
-    for (let i = gameState.floatingTexts.length - 1; i >= 0; i--) {
-        const text = gameState.floatingTexts[i];
-        if (Date.now() - text.createdAt > 2000) {
-            gameState.floatingTexts.splice(i, 1);
-        }
-    }
-
-    for (const body of world.bodies) {
-        if (body.uniqueId !== undefined) {
-            let obj = gameState.objects.find(o => o.uniqueId === body.uniqueId) || gameState.largeBalls.find(b => b.uniqueId === body.uniqueId);
-            if (obj) {
-                obj.x = body.position.x - (obj.width || obj.radius * 2) / 2;
-                obj.y = body.position.y - (obj.height || obj.radius * 2) / 2;
-                obj.rotation = body.angle;
-                obj.vx = body.velocity.x;
-                obj.vy = body.velocity.y;
-                obj.angularVelocity = body.angularVelocity;
-            }
-        }
-        if (body.playerId) {
-            const player = gameState.players[body.playerId];
-            if (player) {
-                player.x = body.position.x - player.width / 2;
-                player.y = body.position.y - player.height / 2;
-                player.vx = body.velocity.x;
-                player.vy = body.velocity.y;
-                if (!isFinite(player.x) || !isFinite(player.y)) {
-                    Matter.Body.setPosition(body, {
-                        x: WORLD_WIDTH / 2,
-                        y: WORLD_HEIGHT / 2
-                    });
-                    Matter.Body.setVelocity(body, {
-                        x: 0,
-                        y: 0
-                    });
-                }
-            }
-        }
-    }
-
-    for (let i = gameState.largeBalls.length - 1; i >= 0; i--) {
-        const ball = gameState.largeBalls[i];
-        if (now - ball.createdAt > 2000) {
-            const ballBody = world.bodies.find(b => b.uniqueId === ball.uniqueId);
-            if (ballBody) Matter.World.remove(world, ballBody);
-            gameState.largeBalls.splice(i, 1);
-            continue;
-        }
-    }
-
-    for (let i = gameState.groundItems.length - 1; i >= 0; i--) {
-        const item = gameState.groundItems[i];
-
-        // Se o item está na área do mar
-        if (isColliding(item, SINKING_AREA)) {
-            // Se ele ainda não começou a afundar, marque o início
-            if (!item.isSinking) {
-                item.isSinking = true;
-                item.sinkingStartTime = now;
-            }
-        }
-
-        // Se o item está afundando, atualize seu progresso
-        if (item.isSinking) {
-            const elapsed = now - item.sinkingStartTime;
-            const progress = elapsed / SINKING_DURATION;
-
-            if (progress >= 1) {
-                // Se o tempo acabou, remova o item do jogo
-                gameState.groundItems.splice(i, 1);
-            } else {
-                // Caso contrário, envie o progresso para o cliente
-                item.sinkingProgress = progress;
-            }
-        }
-    }
-
-    for (let i = gameState.objects.length - 1; i >= 0; i--) {
-        const obj = gameState.objects[i];
-        const body = bodiesMap[obj.uniqueId]; // Pega o corpo físico do objeto
-
-        // Pula objetos estáticos (como o ATM) ou que não têm corpo físico
-        if (!body || body.isStatic) {
-            continue;
-        }
-
-        // Se o objeto está na área do mar
-        if (isColliding(obj, SINKING_AREA)) {
-            // Se ele ainda não começou a afundar, marque o início
-            if (!obj.isSinking) {
-                obj.isSinking = true;
-                obj.sinkingStartTime = now;
-            }
-        }
-
-        // Se o objeto está afundando, atualize seu progresso
-        if (obj.isSinking) {
-            const elapsed = now - obj.sinkingStartTime;
-            const progress = elapsed / SINKING_DURATION;
-
-            if (progress >= 1) {
-                // Se o tempo acabou, remova o objeto completamente
-                if (body) Matter.World.remove(world, body); // Remove do mundo da física
-                delete bodiesMap[obj.uniqueId];             // Remove do nosso mapa de referência
-                gameState.objects.splice(i, 1);             // Remove do estado do jogo
-            } else {
-                // Caso contrário, envie o progresso para o cliente
-                obj.sinkingProgress = progress;
-            }
-        }
-    }
-
-    for (const id in gameState.players) {
-        const player = gameState.players[id];
-        const playerBody = world.bodies.find(b => b.playerId === id);
-        if (!player || !playerBody || !player.input || player.isBeingEaten) continue;
-
-        // NOVO: Handle slow effect expiration
-        if (player.slowedUntil && now > player.slowedUntil) {
-            player.speed = player.originalSpeedBeforeSlow || player.originalSpeed;
-            player.slowedUntil = null;
-            player.originalSpeedBeforeSlow = null;
-        }
-
-        if (player.isHidden) {
-            Matter.Body.setVelocity(playerBody, { x: 0, y: 0 });
-            continue;
-        }
-
-        if (player.isFlyingWithWings && now > (player.angelWingsFlightEndsAt || 0)) {
-            player.isFlyingWithWings = false;
-            player.angelWingsFlightEndsAt = 0;
-            const wingItem = player.inventory.find(i => i && i.id === 'angelWings');
-            if (wingItem) {
-                wingItem.cooldownUntil = now + 20000;
-            }
-            if (playerBody) {
-                playerBody.collisionFilter.mask = 0xFFFFFFFF;
-            }
-        }
-
-        // ALTERADO: Lógica de tamanho separada para humanos e zumbis
-        const gemBonus = Math.sqrt(Math.max(0, player.gems)) * 0.2;
-        if (player.role === 'zombie') {
-            const baseSize = 40; // Base de largura maior
-            player.width = baseSize + gemBonus;
-            player.height = player.width * 1.4; // Proporção altura/largura menor para parecer mais largo
-        } else {
-            const baseSize = 35;
-            player.width = baseSize + gemBonus;
-            player.height = player.width * 1.5;
-        }
-
-
-        const infectionRadius = player.width * 0.75;
-        player.physicalHitbox = {
-            cx: playerBody.position.x,
-            cy: playerBody.position.y,
-            radius: infectionRadius
-        };
-
-        if (player.draggedBy && now < player.draggedUntil) {
-            const ballBody = world.bodies.find(b => b.uniqueId === player.draggedBy);
-            if (ballBody) {
-                const dragForce = Matter.Vector.mult(Matter.Vector.normalise(ballBody.velocity), LARGE_BALL_PLAYER_KNOCKBACK / 10);
-                if (isFinite(dragForce.x) && isFinite(dragForce.y)) {
-                    Matter.Body.applyForce(playerBody, playerBody.position, dragForce);
-                }
-            } else {
-                player.draggedBy = null;
-                player.draggedUntil = null;
-            }
-        } else if (player.draggedBy && now >= player.draggedUntil) {
-            player.draggedBy = null;
-            player.draggedUntil = null;
-        }
-
-        if (player.isTrapped && now > player.trappedUntil) player.isTrapped = false;
-
-        if (player.knockbackVx !== 0 || player.knockbackVy !== 0) {
-            Matter.Body.applyForce(playerBody, playerBody.position, {
-                x: player.knockbackVx / 50,
-                y: player.knockbackVy / 50
-            });
-            player.knockbackVx *= 0.9;
-            player.knockbackVy *= 0.9;
-            if (Math.hypot(player.knockbackVx, player.knockbackVy) < 0.1) {
-                player.knockbackVx = 0;
-                player.knockbackVy = 0;
-            }
-        }
-
-        if (player.isTrapped) {
-            Matter.Body.setVelocity(playerBody, {
-                x: 0,
-                y: 0
-            });
-            continue;
-        }
-
-        if (player.isFlying || player.isFlyingWithWings) {
-            let moveX = 0,
-                moveY = 0;
-            const flyingSpeed = player.isFlyingWithWings ? player.speed * 2 : BUTTERFLY_SPEED;
-            if (player.input.movement.up) moveY -= 1;
-            if (player.input.movement.down) moveY += 1;
-            if (player.input.movement.left) moveX -= 1;
-            if (player.input.movement.right) moveX += 1;
-
-            if (moveX !== 0 || moveY !== 0) {
-                const mag = Math.sqrt(moveX * moveX + moveY * moveY);
-                moveX = (moveX / mag) * flyingSpeed;
-                moveY = (moveY / mag) * flyingSpeed;
-                Matter.Body.setPosition(playerBody, {
-                    x: playerBody.position.x + moveX,
-                    y: playerBody.position.y + moveY
-                });
-            } else {
-                Matter.Body.setVelocity(playerBody, {
-                    x: 0,
-                    y: 0
-                });
-            }
-            continue;
-        }
-
-        if (player.inventory.some(i => i && i.id === 'skateboard')) {
-            const skateSpeed = SKATEBOARD_SPEED_BOOST;
-            const angle = player.rotation;
-            const velocity = {
-                x: Math.cos(angle) * skateSpeed,
-                y: Math.sin(angle) * skateSpeed
-            };
-            Matter.Body.setVelocity(playerBody, velocity);
-        } else {
-            let targetVx = playerBody.velocity.x;
-            let targetVy = playerBody.velocity.y;
-            let accelX = 0,
-                accelY = 0;
-
-            const hasMovementInput = player.input.movement.left || player.input.movement.right || player.input.movement.up || player.input.movement.down;
-
-            if (hasMovementInput) {
-                if (player.input.movement.left) accelX -= 1;
-                if (player.input.movement.right) accelX += 1;
-                if (player.input.movement.up) accelY -= 1;
-                if (player.input.movement.down) accelY += 1;
-            }
-
-            if (accelX !== 0 || accelY !== 0) {
-                const mag = Math.sqrt(accelX * accelX + accelY * accelY);
-                targetVx += (accelX / mag) * PLAYER_ACCELERATION;
-                targetVy += (accelY / mag) * PLAYER_ACCELERATION;
-            } else {
-                targetVx *= PLAYER_FRICTION;
-                targetVy *= PLAYER_FRICTION;
-            }
-
-            let effectiveSpeed = player.isSprinting ? MAX_PLAYER_SPEED : player.speed;
-
-            // ALTERAÇÃO AQUI: Lógica de velocidade por gemas para humanos
-            if (player.role === 'human') {
-                const gemsForSpeed = Math.min(player.gems, 50);
-                const speedBonus = (gemsForSpeed / 50) * 0.3; // Bônus máximo de 0.3
-                effectiveSpeed += speedBonus;
-            }
-
-            if (player.inventory.some(i => i && i.id === 'runningTennis')) {
-                effectiveSpeed += RUNNING_TENNIS_SPEED_BOOST;
-            }
-
-            if (player.role === 'zombie') effectiveSpeed *= ZOMBIE_SPEED_BOOST;
-
-            if (isColliding(player, SAND_AREA)) {
-                effectiveSpeed *= 0.90;
-            }
-            if (isColliding(player, SEA_AREA)) {
-                effectiveSpeed *= 0.70;
-            }
-
-            const currentSpeedSq = targetVx * targetVx + targetVy * targetVy;
-            if (currentSpeedSq > effectiveSpeed * effectiveSpeed) {
-                const speedMag = Math.sqrt(currentSpeedSq);
-                targetVx = (targetVx / speedMag) * effectiveSpeed;
-                targetVy = (targetVy / speedMag) * effectiveSpeed;
-            }
-
-            Matter.Body.setVelocity(playerBody, {
-                x: targetVx,
-                y: targetVy
-            });
-        }
-
-        const padding = 10;
-        let newPosX = playerBody.position.x;
-        let newPosY = playerBody.position.y;
-        let positionChanged = false;
-        if (playerBody.position.x < padding) {
-            newPosX = padding;
-            positionChanged = true;
-        }
-        if (playerBody.position.x > WORLD_WIDTH - padding) {
-            newPosX = WORLD_WIDTH - padding;
-            positionChanged = true;
-        }
-        if (playerBody.position.y < padding) {
-            newPosY = padding;
-            positionChanged = true;
-        }
-        if (playerBody.position.y > WORLD_HEIGHT - padding) {
-            newPosY = WORLD_HEIGHT - padding;
-            positionChanged = true;
-        }
-        if (positionChanged) {
-            Matter.Body.setPosition(playerBody, {
-                x: newPosX,
-                y: newPosY
-            });
-            Matter.Body.setVelocity(playerBody, {
-                x: 0,
-                y: 0
-            });
-        }
-    }
-
-    for (const obj of gameState.objects) {
-        if (obj.draggedBy && now < obj.draggedUntil) {
-            const ballBody = world.bodies.find(b => b.uniqueId === obj.draggedBy);
-            const objBody = bodiesMap[obj.uniqueId];
-            if (ballBody && objBody && ballBody.velocity.x !== 0 && ballBody.velocity.y !== 0) {
-                const dragForce = Matter.Vector.mult(Matter.Vector.normalise(ballBody.velocity), LARGE_BALL_OBJECT_KNOCKBACK / 15);
-                if (isFinite(dragForce.x) && isFinite(dragForce.y)) {
-                    Matter.Body.applyForce(objBody, objBody.position, dragForce);
-                }
-            } else {
-                obj.draggedBy = null;
-                obj.draggedUntil = null;
-            }
-        } else if (obj.draggedBy && now >= obj.draggedUntil) {
-            obj.draggedBy = null;
-            obj.draggedUntil = null;
-        }
-    }
-
-    for (const human of Object.values(gameState.players)) {
-        if (human.isInvisible) {
-            let isVisible = false;
-            for (const zombie of Object.values(gameState.players)) {
-                if (zombie.role === 'zombie' && zombie.id !== human.id) {
-                    const distance = Math.hypot(human.x - zombie.x, human.y - zombie.y);
-                    if (distance < INVISIBILITY_CLOAK_BREAK_DISTANCE) {
-                        human.isInvisible = false;
-                        const cloak = human.inventory.find(i => i.id === 'invisibilityCloak');
-                        if (cloak) {
-                            cloak.active = false;
-                        }
-                        isVisible = true;
-                        break;
-                    }
-                }
-            }
-            if (isVisible) continue;
-        }
-    }
-
-    for (let i = gameState.arrows.length - 1; i >= 0; i--) {
-        const arrow = gameState.arrows[i];
-
-        if (arrow.isStuck) {
-            arrow.angle += arrow.angularVelocity;
-        }
-
-        if (arrow.hasHit) continue;
-
-        arrow.x += Math.cos(arrow.angle) * ARROW_SPEED;
-        arrow.y += Math.sin(arrow.angle) * ARROW_SPEED;
-
-        let hitPlayer = false;
-        for (const playerId in gameState.players) {
-            const player = gameState.players[playerId];
-            if (arrow.ownerId === playerId || !player.physicalHitbox || player.isInDuct) continue;
-            const distSq = (player.physicalHitbox.cx - arrow.x) ** 2 + (player.physicalHitbox.cy - arrow.y) ** 2;
-            if (distSq < (player.physicalHitbox.radius) ** 2) {
-                player.knockbackVx += Math.cos(arrow.angle) * ARROW_KNOCKBACK_IMPULSES;
-                player.knockbackVy += Math.sin(arrow.angle) * ARROW_KNOCKBACK_IMPULSES;
-                arrow.hasHit = true;
-                arrow.isStuck = true;
-                arrow.angularVelocity = 0.001;
-                hitPlayer = true;
-                setTimeout(() => {
-                    gameState.arrows = gameState.arrows.filter(a => a.id !== arrow.id);
-                }, ARROW_LIFESPAN_AFTER_HIT);
-                break;
-            }
-        }
-        if (hitPlayer) continue;
-
-        const collidables = [...gameState.house.walls, ...gameState.garage.walls, ...gameState.objects];
-        let hitWall = false;
-        for (const rect of collidables) {
-            if (arrow.x > rect.x && arrow.x < rect.x + rect.width && arrow.y > rect.y && arrow.y < rect.y + rect.height) {
-                arrow.hasHit = true;
-                hitWall = true;
-                setTimeout(() => {
-                    gameState.arrows = gameState.arrows.filter(a => a.id !== arrow.id);
-                }, 3000);
-                break;
-            }
-        }
-
-        if (hitWall) continue;
-
-        if (!hitPlayer && (arrow.x < 0 || arrow.x > WORLD_WIDTH || arrow.y < 0 || arrow.y > WORLD_HEIGHT)) {
-            gameState.arrows.splice(i, 1);
-        }
-    }
-
-    // NOVO: Lógica de atualização para as flechas do Blowdart
-    for (let i = gameState.blowdartArrows.length - 1; i >= 0; i--) {
-        const arrow = gameState.blowdartArrows[i];
-        if (arrow.hasHit) continue;
-
-        arrow.x += Math.cos(arrow.angle) * ARROW_SPEED;
-        arrow.y += Math.sin(arrow.angle) * ARROW_SPEED;
-
-        let hitSomething = false;
-
-        for (const playerId in gameState.players) {
-            const player = gameState.players[playerId];
-            if (arrow.ownerId === playerId || player.role !== 'zombie' || !player.physicalHitbox || player.isInDuct) continue;
-
-            const distSq = (player.physicalHitbox.cx - arrow.x) ** 2 + (player.physicalHitbox.cy - arrow.y) ** 2;
-            if (distSq < player.physicalHitbox.radius ** 2) {
-                if (!player.slowedUntil || now > player.slowedUntil) {
-                    player.originalSpeedBeforeSlow = player.speed;
-                }
-                player.speed = 1;
-                player.slowedUntil = now + 3000;
-
-                hitSomething = true;
-                gameState.blowdartArrows.splice(i, 1);
-                break;
-            }
-        }
-
-        if (hitSomething) continue;
-
-        const collidables = [...gameState.house.walls, ...gameState.garage.walls, ...gameState.objects];
-        for (const rect of collidables) {
-            if (arrow.x > rect.x && arrow.x < rect.x + rect.width && arrow.y > rect.y && arrow.y < rect.y + rect.height) {
-                hitSomething = true;
-                break;
-            }
-        }
-        if (!hitSomething && (arrow.x < 0 || arrow.x > WORLD_WIDTH || arrow.y < 0 || arrow.y > WORLD_HEIGHT)) {
-            hitSomething = true;
-        }
-
-        if (hitSomething) {
-            gameState.blowdartArrows.splice(i, 1);
-        }
-    }
-
-
-    for (const ownerId in gameState.drones) {
-        const drone = gameState.drones[ownerId];
-        const player = gameState.players[ownerId];
-        if (player && player.input.worldMouse) {
-            drone.x += (player.input.worldMouse.x - drone.x) * DRONE_FOLLOW_FACTOR;
-            drone.y += (player.input.worldMouse.y - drone.y) * DRONE_FOLLOW_FACTOR;
-        }
-    }
-
-    for (let i = gameState.grenades.length - 1; i >= 0; i--) {
-        const grenade = gameState.grenades[i];
-        if (now > grenade.explodeTime) {
-            for (const player of Object.values(gameState.players)) {
-                const playerCenterX = player.x + player.width / 2;
-                const playerCenterY = player.y + player.height / 2;
-                const distance = Math.hypot(playerCenterX - grenade.x, playerCenterY - grenade.y);
-                if (distance < GRENADE_RADIUS) {
-                    const knockback = (1 - (distance / GRENADE_RADIUS)) * GRENADE_KNOCKBACK_IMPulse;
-                    const angle = Math.atan2(playerCenterY - grenade.y, playerCenterX - grenade.x);
-                    player.knockbackVx += Math.cos(angle) * knockback;
-                    player.knockbackVy += Math.sin(angle) * knockback;
-                }
-            }
-            gameState.grenades.splice(i, 1);
-        }
-    }
-
-    for (let i = gameState.traps.length - 1; i >= 0; i--) {
-        const trap = gameState.traps[i];
-        for (const player of Object.values(gameState.players)) {
-            if (player.role === 'human' && !player.isTrapped && Math.hypot(player.x - trap.x, player.y - trap.y) < TRAP_SIZE) {
-                player.isTrapped = true;
-                player.trappedUntil = now + TRAP_DURATION;
-                gameState.traps.splice(i, 1);
-                break;
-            }
-        }
-    }
-
-    for (let i = gameState.mines.length - 1; i >= 0; i--) {
-        const mine = gameState.mines[i];
-        if (now < mine.createdAt + 2000) continue;
-
-        let triggered = false;
-        let triggeringPlayer = null;
-
-        for (const player of Object.values(gameState.players)) {
-            if (player.role === 'zombie') continue;
-            if (Math.hypot((player.x + player.width / 2) - (mine.x + mine.width / 2), (player.y + player.height / 2) - (mine.y + mine.height / 2)) < MINE_SIZE) {
-                triggered = true;
-                triggeringPlayer = player;
-                break;
-            }
-        }
-
-        if (triggered) {
-            for (const player of Object.values(gameState.players)) {
-                const distance = Math.hypot((player.x + player.width / 2) - (mine.x + mine.width / 2), (player.y + player.height / 2) - (mine.y + mine.height / 2));
-
-                if (distance < MINE_EXPLOSION_RADIUS) {
-                    const angle = Math.atan2((player.y + player.height / 2) - (mine.y + mine.height / 2), (player.x + player.width / 2) - (mine.x + mine.width / 2));
-
-                    let knockbackForce;
-                    if (player.id === triggeringPlayer.id) {
-                        knockbackForce = MINE_PRIMARY_KNOCKBACK;
-                    } else {
-                        knockbackForce = MINE_SPLASH_KNOCKBACK * (1 - (distance / MINE_EXPLOSION_RADIUS));
-                    }
-
-                    player.knockbackVx += Math.cos(angle) * knockbackForce;
-                    player.knockbackVy += Math.sin(angle) * knockbackForce;
-                }
-            }
-            gameState.mines.splice(i, 1);
-        }
-    }
-
-    if (now > gameState.lastPortalUseTimestamp) {
-        const portalsByOwner = {};
-        for (const portal of gameState.portals) {
-            if (!portalsByOwner[portal.ownerId]) portalsByOwner[portal.ownerId] = [];
-            portalsByOwner[portal.ownerId].push(portal);
-        }
-
-        for (const ownerId in portalsByOwner) {
-            if (portalsByOwner[ownerId].length === 2) {
-                const [portalA, portalB] = portalsByOwner[ownerId];
-                for (const player of Object.values(gameState.players)) {
-                    const playerBody = world.bodies.find(b => b.playerId === player.id);
-                    if (!playerBody) continue;
-
-                    let teleported = false;
-                    if (Math.hypot(playerBody.position.x - portalA.x, playerBody.position.y - portalA.y) < PORTAL_SIZE / 2) {
-                        Matter.Body.setPosition(playerBody, {
-                            x: portalB.x,
-                            y: portalB.y
-                        });
-                        teleported = true;
-                    } else if (Math.hypot(playerBody.position.x - portalB.x, playerBody.position.y - portalB.y) < PORTAL_SIZE / 2) {
-                        Matter.Body.setPosition(playerBody, {
-                            x: portalA.x,
-                            y: portalA.y
-                        });
-                        teleported = true;
-                    }
-
-                    if (teleported) {
-                        gameState.lastPortalUseTimestamp = now + PORTAL_COOLDOWN;
-                        break;
-                    }
-                }
-                if (now > gameState.lastPortalUseTimestamp) {
-                    continue;
-                } else {
-                    break;
-                }
-            }
-        }
-    }
+    const now = Date.now();
+    Matter.Engine.update(engine, TICK_RATE);
+    updateSharks();
+
+
+    for (let i = gameState.floatingTexts.length - 1; i >= 0; i--) {
+        const text = gameState.floatingTexts[i];
+        if (Date.now() - text.createdAt > 2000) {
+            gameState.floatingTexts.splice(i, 1);
+        }
+    }
+
+    // OTIMIZAÇÃO 2: mapa uniqueId -> objeto/bola, construído 1x por tick em vez de
+    // usar .find() em gameState.objects e gameState.largeBalls para cada corpo físico.
+    const uniqueIdMap = new Map();
+    for (const o of gameState.objects) uniqueIdMap.set(o.uniqueId, o);
+    for (const b of gameState.largeBalls) uniqueIdMap.set(b.uniqueId, b);
+
+    // OTIMIZAÇÃO 1: mapa playerId -> body, construído junto com a varredura de world.bodies
+    // que já ocorre abaixo, evitando o world.bodies.find() repetido no loop de jogadores.
+    const playerBodyMap = {};
+
+    for (const body of world.bodies) {
+        if (body.uniqueId !== undefined) {
+            const obj = uniqueIdMap.get(body.uniqueId);
+            if (obj) {
+                obj.x = body.position.x - (obj.width || obj.radius * 2) / 2;
+                obj.y = body.position.y - (obj.height || obj.radius * 2) / 2;
+                obj.rotation = body.angle;
+                obj.vx = body.velocity.x;
+                obj.vy = body.velocity.y;
+                obj.angularVelocity = body.angularVelocity;
+            }
+        }
+        if (body.playerId) {
+            playerBodyMap[body.playerId] = body;
+            const player = gameState.players[body.playerId];
+            if (player) {
+                player.x = body.position.x - player.width / 2;
+                player.y = body.position.y - player.height / 2;
+                player.vx = body.velocity.x;
+                player.vy = body.velocity.y;
+                if (!isFinite(player.x) || !isFinite(player.y)) {
+                    Matter.Body.setPosition(body, {
+                        x: WORLD_WIDTH / 2,
+                        y: WORLD_HEIGHT / 2
+                    });
+                    Matter.Body.setVelocity(body, {
+                        x: 0,
+                        y: 0
+                    });
+                }
+            }
+        }
+    }
+
+    for (let i = gameState.largeBalls.length - 1; i >= 0; i--) {
+        const ball = gameState.largeBalls[i];
+        if (now - ball.createdAt > 2000) {
+            const ballBody = world.bodies.find(b => b.uniqueId === ball.uniqueId);
+            if (ballBody) Matter.World.remove(world, ballBody);
+            gameState.largeBalls.splice(i, 1);
+            continue;
+        }
+    }
+
+    for (let i = gameState.groundItems.length - 1; i >= 0; i--) {
+        const item = gameState.groundItems[i];
+
+        // Se o item está na área do mar
+        if (isColliding(item, SINKING_AREA)) {
+            // Se ele ainda não começou a afundar, marque o início
+            if (!item.isSinking) {
+                item.isSinking = true;
+                item.sinkingStartTime = now;
+            }
+        }
+
+        // Se o item está afundando, atualize seu progresso
+        if (item.isSinking) {
+            const elapsed = now - item.sinkingStartTime;
+            const progress = elapsed / SINKING_DURATION;
+
+            if (progress >= 1) {
+                // Se o tempo acabou, remova o item do jogo
+                gameState.groundItems.splice(i, 1);
+            } else {
+                // Caso contrário, envie o progresso para o cliente
+                item.sinkingProgress = progress;
+            }
+        }
+    }
+
+    for (let i = gameState.objects.length - 1; i >= 0; i--) {
+        const obj = gameState.objects[i];
+        const body = bodiesMap[obj.uniqueId]; // Pega o corpo físico do objeto
+
+        // Pula objetos estáticos (como o ATM) ou que não têm corpo físico
+        if (!body || body.isStatic) {
+            continue;
+        }
+
+        // Se o objeto está na área do mar
+        if (isColliding(obj, SINKING_AREA)) {
+            // Se ele ainda não começou a afundar, marque o início
+            if (!obj.isSinking) {
+                obj.isSinking = true;
+                obj.sinkingStartTime = now;
+            }
+        }
+
+        // Se o objeto está afundando, atualize seu progresso
+        if (obj.isSinking) {
+            const elapsed = now - obj.sinkingStartTime;
+            const progress = elapsed / SINKING_DURATION;
+
+            if (progress >= 1) {
+                // Se o tempo acabou, remova o objeto completamente
+                if (body) Matter.World.remove(world, body); // Remove do mundo da física
+                delete bodiesMap[obj.uniqueId];             // Remove do nosso mapa de referência
+                gameState.objects.splice(i, 1);             // Remove do estado do jogo
+            } else {
+                // Caso contrário, envie o progresso para o cliente
+                obj.sinkingProgress = progress;
+            }
+        }
+    }
+
+    for (const id in gameState.players) {
+        const player = gameState.players[id];
+        const playerBody = playerBodyMap[id];
+        if (!player || !playerBody || !player.input || player.isBeingEaten) continue;
+
+        // NOVO: Handle slow effect expiration
+        if (player.slowedUntil && now > player.slowedUntil) {
+            player.speed = player.originalSpeedBeforeSlow || player.originalSpeed;
+            player.slowedUntil = null;
+            player.originalSpeedBeforeSlow = null;
+        }
+
+        if (player.isHidden) {
+            Matter.Body.setVelocity(playerBody, { x: 0, y: 0 });
+            continue;
+        }
+
+        if (player.isFlyingWithWings && now > (player.angelWingsFlightEndsAt || 0)) {
+            player.isFlyingWithWings = false;
+            player.angelWingsFlightEndsAt = 0;
+            const wingItem = player.inventory.find(i => i && i.id === 'angelWings');
+            if (wingItem) {
+                wingItem.cooldownUntil = now + 20000;
+            }
+            if (playerBody) {
+                playerBody.collisionFilter.mask = 0xFFFFFFFF;
+            }
+        }
+
+        // ALTERADO: Lógica de tamanho separada para humanos e zumbis
+        const gemBonus = Math.sqrt(Math.max(0, player.gems)) * 0.2;
+        if (player.role === 'zombie') {
+            const baseSize = 40; // Base de largura maior
+            player.width = baseSize + gemBonus;
+            player.height = player.width * 1.4; // Proporção altura/largura menor para parecer mais largo
+        } else {
+            const baseSize = 35;
+            player.width = baseSize + gemBonus;
+            player.height = player.width * 1.5;
+        }
+
+
+        const infectionRadius = player.width * 0.75;
+        player.physicalHitbox = {
+            cx: playerBody.position.x,
+            cy: playerBody.position.y,
+            radius: infectionRadius
+        };
+
+        if (player.draggedBy && now < player.draggedUntil) {
+            const ballBody = world.bodies.find(b => b.uniqueId === player.draggedBy);
+            if (ballBody) {
+                const dragForce = Matter.Vector.mult(Matter.Vector.normalise(ballBody.velocity), LARGE_BALL_PLAYER_KNOCKBACK / 10);
+                if (isFinite(dragForce.x) && isFinite(dragForce.y)) {
+                    Matter.Body.applyForce(playerBody, playerBody.position, dragForce);
+                }
+            } else {
+                player.draggedBy = null;
+                player.draggedUntil = null;
+            }
+        } else if (player.draggedBy && now >= player.draggedUntil) {
+            player.draggedBy = null;
+            player.draggedUntil = null;
+        }
+
+        if (player.isTrapped && now > player.trappedUntil) player.isTrapped = false;
+
+        if (player.knockbackVx !== 0 || player.knockbackVy !== 0) {
+            Matter.Body.applyForce(playerBody, playerBody.position, {
+                x: player.knockbackVx / 50,
+                y: player.knockbackVy / 50
+            });
+            player.knockbackVx *= 0.9;
+            player.knockbackVy *= 0.9;
+            if (Math.hypot(player.knockbackVx, player.knockbackVy) < 0.1) {
+                player.knockbackVx = 0;
+                player.knockbackVy = 0;
+            }
+        }
+
+        if (player.isTrapped) {
+            Matter.Body.setVelocity(playerBody, {
+                x: 0,
+                y: 0
+            });
+            continue;
+        }
+
+        if (player.isFlying || player.isFlyingWithWings) {
+            let moveX = 0,
+                moveY = 0;
+            const flyingSpeed = player.isFlyingWithWings ? player.speed * 2 : BUTTERFLY_SPEED;
+            if (player.input.movement.up) moveY -= 1;
+            if (player.input.movement.down) moveY += 1;
+            if (player.input.movement.left) moveX -= 1;
+            if (player.input.movement.right) moveX += 1;
+
+            if (moveX !== 0 || moveY !== 0) {
+                const mag = Math.sqrt(moveX * moveX + moveY * moveY);
+                moveX = (moveX / mag) * flyingSpeed;
+                moveY = (moveY / mag) * flyingSpeed;
+                Matter.Body.setPosition(playerBody, {
+                    x: playerBody.position.x + moveX,
+                    y: playerBody.position.y + moveY
+                });
+            } else {
+                Matter.Body.setVelocity(playerBody, {
+                    x: 0,
+                    y: 0
+                });
+            }
+            continue;
+        }
+
+        if (player.inventory.some(i => i && i.id === 'skateboard')) {
+            const skateSpeed = SKATEBOARD_SPEED_BOOST;
+            const angle = player.rotation;
+            const velocity = {
+                x: Math.cos(angle) * skateSpeed,
+                y: Math.sin(angle) * skateSpeed
+            };
+            Matter.Body.setVelocity(playerBody, velocity);
+        } else {
+            let targetVx = playerBody.velocity.x;
+            let targetVy = playerBody.velocity.y;
+            let accelX = 0,
+                accelY = 0;
+
+            const hasMovementInput = player.input.movement.left || player.input.movement.right || player.input.movement.up || player.input.movement.down;
+
+            if (hasMovementInput) {
+                if (player.input.movement.left) accelX -= 1;
+                if (player.input.movement.right) accelX += 1;
+                if (player.input.movement.up) accelY -= 1;
+                if (player.input.movement.down) accelY += 1;
+            }
+
+            if (accelX !== 0 || accelY !== 0) {
+                const mag = Math.sqrt(accelX * accelX + accelY * accelY);
+                targetVx += (accelX / mag) * PLAYER_ACCELERATION;
+                targetVy += (accelY / mag) * PLAYER_ACCELERATION;
+            } else {
+                targetVx *= PLAYER_FRICTION;
+                targetVy *= PLAYER_FRICTION;
+            }
+
+            let effectiveSpeed = player.isSprinting ? MAX_PLAYER_SPEED : player.speed;
+
+            // ALTERAÇÃO AQUI: Lógica de velocidade por gemas para humanos
+            if (player.role === 'human') {
+                const gemsForSpeed = Math.min(player.gems, 50);
+                const speedBonus = (gemsForSpeed / 50) * 0.3; // Bônus máximo de 0.3
+                effectiveSpeed += speedBonus;
+            }
+
+            if (player.inventory.some(i => i && i.id === 'runningTennis')) {
+                effectiveSpeed += RUNNING_TENNIS_SPEED_BOOST;
+            }
+
+            if (player.role === 'zombie') effectiveSpeed *= ZOMBIE_SPEED_BOOST;
+
+            if (isColliding(player, SAND_AREA)) {
+                effectiveSpeed *= 0.90;
+            }
+            if (isColliding(player, SEA_AREA)) {
+                effectiveSpeed *= 0.70;
+            }
+
+            const currentSpeedSq = targetVx * targetVx + targetVy * targetVy;
+            if (currentSpeedSq > effectiveSpeed * effectiveSpeed) {
+                const speedMag = Math.sqrt(currentSpeedSq);
+                targetVx = (targetVx / speedMag) * effectiveSpeed;
+                targetVy = (targetVy / speedMag) * effectiveSpeed;
+            }
+
+            Matter.Body.setVelocity(playerBody, {
+                x: targetVx,
+                y: targetVy
+            });
+        }
+
+        const padding = 10;
+        let newPosX = playerBody.position.x;
+        let newPosY = playerBody.position.y;
+        let positionChanged = false;
+        if (playerBody.position.x < padding) {
+            newPosX = padding;
+            positionChanged = true;
+        }
+        if (playerBody.position.x > WORLD_WIDTH - padding) {
+            newPosX = WORLD_WIDTH - padding;
+            positionChanged = true;
+        }
+        if (playerBody.position.y < padding) {
+            newPosY = padding;
+            positionChanged = true;
+        }
+        if (playerBody.position.y > WORLD_HEIGHT - padding) {
+            newPosY = WORLD_HEIGHT - padding;
+            positionChanged = true;
+        }
+        if (positionChanged) {
+            Matter.Body.setPosition(playerBody, {
+                x: newPosX,
+                y: newPosY
+            });
+            Matter.Body.setVelocity(playerBody, {
+                x: 0,
+                y: 0
+            });
+        }
+    }
+
+    for (const obj of gameState.objects) {
+        if (obj.draggedBy && now < obj.draggedUntil) {
+            const ballBody = world.bodies.find(b => b.uniqueId === obj.draggedBy);
+            const objBody = bodiesMap[obj.uniqueId];
+            if (ballBody && objBody && ballBody.velocity.x !== 0 && ballBody.velocity.y !== 0) {
+                const dragForce = Matter.Vector.mult(Matter.Vector.normalise(ballBody.velocity), LARGE_BALL_OBJECT_KNOCKBACK / 15);
+                if (isFinite(dragForce.x) && isFinite(dragForce.y)) {
+                    Matter.Body.applyForce(objBody, objBody.position, dragForce);
+                }
+            } else {
+                obj.draggedBy = null;
+                obj.draggedUntil = null;
+            }
+        } else if (obj.draggedBy && now >= obj.draggedUntil) {
+            obj.draggedBy = null;
+            obj.draggedUntil = null;
+        }
+    }
+
+    for (const human of Object.values(gameState.players)) {
+        if (human.isInvisible) {
+            let isVisible = false;
+            for (const zombie of Object.values(gameState.players)) {
+                if (zombie.role === 'zombie' && zombie.id !== human.id) {
+                    const distance = Math.hypot(human.x - zombie.x, human.y - zombie.y);
+                    if (distance < INVISIBILITY_CLOAK_BREAK_DISTANCE) {
+                        human.isInvisible = false;
+                        const cloak = human.inventory.find(i => i.id === 'invisibilityCloak');
+                        if (cloak) {
+                            cloak.active = false;
+                        }
+                        isVisible = true;
+                        break;
+                    }
+                }
+            }
+            if (isVisible) continue;
+        }
+    }
+
+    // OTIMIZAÇÃO 3: array de colidáveis (paredes + objetos) montado 1x por tick,
+    // e reutilizado tanto pelas flechas normais quanto pelas do blowdart abaixo.
+    // Nenhuma parede/objeto muda de posição entre os dois loops de flechas.
+    const collidables = [...gameState.house.walls, ...gameState.garage.walls, ...gameState.objects];
+
+    for (let i = gameState.arrows.length - 1; i >= 0; i--) {
+        const arrow = gameState.arrows[i];
+
+        if (arrow.isStuck) {
+            arrow.angle += arrow.angularVelocity;
+        }
+
+        if (arrow.hasHit) continue;
+
+        arrow.x += Math.cos(arrow.angle) * ARROW_SPEED;
+        arrow.y += Math.sin(arrow.angle) * ARROW_SPEED;
+
+        let hitPlayer = false;
+        for (const playerId in gameState.players) {
+            const player = gameState.players[playerId];
+            if (arrow.ownerId === playerId || !player.physicalHitbox || player.isInDuct) continue;
+            const distSq = (player.physicalHitbox.cx - arrow.x) ** 2 + (player.physicalHitbox.cy - arrow.y) ** 2;
+            if (distSq < (player.physicalHitbox.radius) ** 2) {
+                player.knockbackVx += Math.cos(arrow.angle) * ARROW_KNOCKBACK_IMPULSES;
+                player.knockbackVy += Math.sin(arrow.angle) * ARROW_KNOCKBACK_IMPULSES;
+                arrow.hasHit = true;
+                arrow.isStuck = true;
+                arrow.angularVelocity = 0.001;
+                hitPlayer = true;
+                setTimeout(() => {
+                    gameState.arrows = gameState.arrows.filter(a => a.id !== arrow.id);
+                }, ARROW_LIFESPAN_AFTER_HIT);
+                break;
+            }
+        }
+        if (hitPlayer) continue;
+
+        let hitWall = false;
+        for (const rect of collidables) {
+            if (arrow.x > rect.x && arrow.x < rect.x + rect.width && arrow.y > rect.y && arrow.y < rect.y + rect.height) {
+                arrow.hasHit = true;
+                hitWall = true;
+                setTimeout(() => {
+                    gameState.arrows = gameState.arrows.filter(a => a.id !== arrow.id);
+                }, 3000);
+                break;
+            }
+        }
+
+        if (hitWall) continue;
+
+        if (!hitPlayer && (arrow.x < 0 || arrow.x > WORLD_WIDTH || arrow.y < 0 || arrow.y > WORLD_HEIGHT)) {
+            gameState.arrows.splice(i, 1);
+        }
+    }
+
+    // NOVO: Lógica de atualização para as flechas do Blowdart
+    for (let i = gameState.blowdartArrows.length - 1; i >= 0; i--) {
+        const arrow = gameState.blowdartArrows[i];
+        if (arrow.hasHit) continue;
+
+        arrow.x += Math.cos(arrow.angle) * ARROW_SPEED;
+        arrow.y += Math.sin(arrow.angle) * ARROW_SPEED;
+
+        let hitSomething = false;
+
+        for (const playerId in gameState.players) {
+            const player = gameState.players[playerId];
+            if (arrow.ownerId === playerId || player.role !== 'zombie' || !player.physicalHitbox || player.isInDuct) continue;
+
+            const distSq = (player.physicalHitbox.cx - arrow.x) ** 2 + (player.physicalHitbox.cy - arrow.y) ** 2;
+            if (distSq < player.physicalHitbox.radius ** 2) {
+                if (!player.slowedUntil || now > player.slowedUntil) {
+                    player.originalSpeedBeforeSlow = player.speed;
+                }
+                player.speed = 1;
+                player.slowedUntil = now + 3000;
+
+                hitSomething = true;
+                gameState.blowdartArrows.splice(i, 1);
+                break;
+            }
+        }
+
+        if (hitSomething) continue;
+
+        for (const rect of collidables) {
+            if (arrow.x > rect.x && arrow.x < rect.x + rect.width && arrow.y > rect.y && arrow.y < rect.y + rect.height) {
+                hitSomething = true;
+                break;
+            }
+        }
+        if (!hitSomething && (arrow.x < 0 || arrow.x > WORLD_WIDTH || arrow.y < 0 || arrow.y > WORLD_HEIGHT)) {
+            hitSomething = true;
+        }
+
+        if (hitSomething) {
+            gameState.blowdartArrows.splice(i, 1);
+        }
+    }
+
+
+    for (const ownerId in gameState.drones) {
+        const drone = gameState.drones[ownerId];
+        const player = gameState.players[ownerId];
+        if (player && player.input.worldMouse) {
+            drone.x += (player.input.worldMouse.x - drone.x) * DRONE_FOLLOW_FACTOR;
+            drone.y += (player.input.worldMouse.y - drone.y) * DRONE_FOLLOW_FACTOR;
+        }
+    }
+
+    for (let i = gameState.grenades.length - 1; i >= 0; i--) {
+        const grenade = gameState.grenades[i];
+        if (now > grenade.explodeTime) {
+            for (const player of Object.values(gameState.players)) {
+                const playerCenterX = player.x + player.width / 2;
+                const playerCenterY = player.y + player.height / 2;
+                const distance = Math.hypot(playerCenterX - grenade.x, playerCenterY - grenade.y);
+                if (distance < GRENADE_RADIUS) {
+                    const knockback = (1 - (distance / GRENADE_RADIUS)) * GRENADE_KNOCKBACK_IMPulse;
+                    const angle = Math.atan2(playerCenterY - grenade.y, playerCenterX - grenade.x);
+                    player.knockbackVx += Math.cos(angle) * knockback;
+                    player.knockbackVy += Math.sin(angle) * knockback;
+                }
+            }
+            gameState.grenades.splice(i, 1);
+        }
+    }
+
+    for (let i = gameState.traps.length - 1; i >= 0; i--) {
+        const trap = gameState.traps[i];
+        for (const player of Object.values(gameState.players)) {
+            if (player.role === 'human' && !player.isTrapped && Math.hypot(player.x - trap.x, player.y - trap.y) < TRAP_SIZE) {
+                player.isTrapped = true;
+                player.trappedUntil = now + TRAP_DURATION;
+                gameState.traps.splice(i, 1);
+                break;
+            }
+        }
+    }
+
+    for (let i = gameState.mines.length - 1; i >= 0; i--) {
+        const mine = gameState.mines[i];
+        if (now < mine.createdAt + 2000) continue;
+
+        let triggered = false;
+        let triggeringPlayer = null;
+
+        for (const player of Object.values(gameState.players)) {
+            if (player.role === 'zombie') continue;
+            if (Math.hypot((player.x + player.width / 2) - (mine.x + mine.width / 2), (player.y + player.height / 2) - (mine.y + mine.height / 2)) < MINE_SIZE) {
+                triggered = true;
+                triggeringPlayer = player;
+                break;
+            }
+        }
+
+        if (triggered) {
+            for (const player of Object.values(gameState.players)) {
+                const distance = Math.hypot((player.x + player.width / 2) - (mine.x + mine.width / 2), (player.y + player.height / 2) - (mine.y + mine.height / 2));
+
+                if (distance < MINE_EXPLOSION_RADIUS) {
+                    const angle = Math.atan2((player.y + player.height / 2) - (mine.y + mine.height / 2), (player.x + player.width / 2) - (mine.x + mine.width / 2));
+
+                    let knockbackForce;
+                    if (player.id === triggeringPlayer.id) {
+                        knockbackForce = MINE_PRIMARY_KNOCKBACK;
+                    } else {
+                        knockbackForce = MINE_SPLASH_KNOCKBACK * (1 - (distance / MINE_EXPLOSION_RADIUS));
+                    }
+
+                    player.knockbackVx += Math.cos(angle) * knockbackForce;
+                    player.knockbackVy += Math.sin(angle) * knockbackForce;
+                }
+            }
+            gameState.mines.splice(i, 1);
+        }
+    }
+
+    if (now > gameState.lastPortalUseTimestamp) {
+        const portalsByOwner = {};
+        for (const portal of gameState.portals) {
+            if (!portalsByOwner[portal.ownerId]) portalsByOwner[portal.ownerId] = [];
+            portalsByOwner[portal.ownerId].push(portal);
+        }
+
+        for (const ownerId in portalsByOwner) {
+            if (portalsByOwner[ownerId].length === 2) {
+                const [portalA, portalB] = portalsByOwner[ownerId];
+                for (const player of Object.values(gameState.players)) {
+                    const playerBody = world.bodies.find(b => b.playerId === player.id);
+                    if (!playerBody) continue;
+
+                    let teleported = false;
+                    if (Math.hypot(playerBody.position.x - portalA.x, playerBody.position.y - portalA.y) < PORTAL_SIZE / 2) {
+                        Matter.Body.setPosition(playerBody, {
+                            x: portalB.x,
+                            y: portalB.y
+                        });
+                        teleported = true;
+                    } else if (Math.hypot(playerBody.position.x - portalB.x, playerBody.position.y - portalB.y) < PORTAL_SIZE / 2) {
+                        Matter.Body.setPosition(playerBody, {
+                            x: portalA.x,
+                            y: portalA.y
+                        });
+                        teleported = true;
+                    }
+
+                    if (teleported) {
+                        gameState.lastPortalUseTimestamp = now + PORTAL_COOLDOWN;
+                        break;
+                    }
+                }
+                if (now > gameState.lastPortalUseTimestamp) {
+                    continue;
+                } else {
+                    break;
+                }
+            }
+        }
+    }
 }
 
 function setupCollisionEvents() {
