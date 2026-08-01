@@ -181,27 +181,29 @@ socket.on('gameStateUpdate', (serverState) => {
     if (!serverState || typeof serverState !== 'object' || !serverState.players || typeof serverState.players !== 'object') {
         return;
     }
+
     if (myId && !serverState.players[myId]) {
         const localPlayer = Object.values(serverState.players).find(player => player && player.id === myId);
         if (localPlayer) serverState.players[myId] = localPlayer;
     }
+
+    gameState = serverState;
+
     if (myId && gameState.players[myId] && serverState.players[myId]) {
         const meBefore = gameState.players[myId];
         const meNow = serverState.players[myId];
         if (meBefore.role !== 'zombie' && meNow.role === 'zombie' && !meNow.butterflyUsed) {
             isMenuOpen = false;
         }
-    }},
-
-
-
+    }
+});
 
 socket.on('newMessage', (message) => {
     chatMessages.push(message);
     if (chatMessages.length > MAX_MESSAGES) {
         chatMessages.shift();
     }
-}));
+});
 
 socket.on('toggleIdDisplay', (data) => {
     showPlayerIds = !!(data && data.enabled === true);

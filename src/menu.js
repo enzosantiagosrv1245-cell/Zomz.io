@@ -9,12 +9,61 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- Não precisamos mais da animação de fundo do menu ---
     // A função drawCanvas() foi removida.
 
-    let currentUser = null;
-    let userProfile = null;
-    let linkQueue = [];
-    let menuProfileIcon = null;
-    let menuProfilePanel = null;
-    let menuProfileOverlay = null; // Para o fundo escurecido
+    const SESSION_TOKEN_KEY = 'zomz-session-token';
+    let currentUser = null;
+    let userProfile = null;
+    let linkQueue = [];
+    let menuProfileIcon = null;
+    let menuProfilePanel = null;
+    let menuProfileOverlay = null; // Para o fundo escurecido
+    let commandListPanel = null;
+
+    function storeSessionToken(token) {
+        if (typeof token === 'string' && token.length > 0) {
+            localStorage.setItem(SESSION_TOKEN_KEY, token);
+        } else {
+            localStorage.removeItem(SESSION_TOKEN_KEY);
+        }
+    }
+
+    function clearSessionToken() {
+        localStorage.removeItem(SESSION_TOKEN_KEY);
+    }
+
+    function ensureCommandListPanel() {
+        if (commandListPanel) return commandListPanel;
+        commandListPanel = document.createElement('div');
+        commandListPanel.style.position = 'fixed';
+        commandListPanel.style.top = '20px';
+        commandListPanel.style.left = '20px';
+        commandListPanel.style.width = '260px';
+        commandListPanel.style.maxHeight = '40vh';
+        commandListPanel.style.overflow = 'auto';
+        commandListPanel.style.background = 'rgba(10, 10, 15, 0.95)';
+        commandListPanel.style.border = '1px solid #2d2d34';
+        commandListPanel.style.borderRadius = '8px';
+        commandListPanel.style.color = 'white';
+        commandListPanel.style.padding = '10px';
+        commandListPanel.style.fontFamily = 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
+        commandListPanel.style.fontSize = '12px';
+        commandListPanel.style.zIndex = '2600';
+        commandListPanel.style.display = 'none';
+        commandListPanel.innerHTML = '<div style="font-weight:bold; margin-bottom:8px;">Available commands</div>';
+        document.body.appendChild(commandListPanel);
+        return commandListPanel;
+    }
+
+    function applyCommandList(enabled, commands) {
+        const panel = ensureCommandListPanel();
+        if (!enabled) {
+            panel.style.display = 'none';
+            return;
+        }
+
+        const list = Array.isArray(commands) ? commands : [];
+        panel.innerHTML = `<div style="font-weight:bold; margin-bottom:8px;">Available commands</div>${list.map(cmd => `<div style="margin:6px 0;">${cmd}</div>`).join('')}`;
+        panel.style.display = 'block';
+    }
 
     // =================================================================
     // --- CÓDIGO MODIFICADO: Perfil do Menu ---
@@ -223,11 +272,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const closeModalBtn = document.getElementById("closeModalBtn");
     const registerBtn = document.getElementById("registerBtn");
     const loginSubmitBtn = document.getElementById("loginSubmitBtn");
-    const usernameInput = document.getElementById("username");
-    const passwordInput = document.getElementById("password");
-
-    loginBtn.addEventListener("click", () => loginModal.classList.remove("hidden"));
-    closeModalBtn.addEventListener("click", () => loginModal.classList.add("hidden"));
+    const guestLoginBtn = document.getElementById("guestLoginBtn");
 
     registerBtn.addEventListener("click", () => {
         const user = usernameInput.value.trim();
@@ -249,8 +294,21 @@ document.addEventListener("DOMContentLoaded", () => {
             password: pass
         });
     });
+    guestLoginBtn.addEventListener("click", () => {
+        socket.emit("guestLogin");
+    });
+
+    const restoredSessionToken = localStorage.getItem(SESSION_TOKEN_KEY);
+    if (restoredSessionToken) {
+        socket.emit("resumeSession", {
+            sessionToken: restoredSessionToken
+        });
+    }
 
     socket.on("registerSuccess", data => {
+        if (data && typeof data.sessionToken === 'string') {
+            storeSessionToken(data.sessionToken);
+        }
         showNotification(`✅ Conta criada com sucesso! Agora faça login.`, "green");
     });
 
@@ -262,6 +320,9 @@ document.addEventListener("DOMContentLoaded", () => {
     socket.on("loginSuccess", data => {
         currentUser = data.username;
         userProfile = data;
+        if (data && typeof data.sessionToken === 'string') {
+            storeSessionToken(data.sessionToken);
+        }
         loginModal.classList.add("hidden");
         showNotification(`🎉 Login realizado! Bem-vindo, ${data.username}!`, "green");
 
@@ -273,6 +334,33 @@ document.addEventListener("DOMContentLoaded", () => {
         // Mostra o ícone de perfil no menu
         if (menuProfileIcon) menuProfileIcon.style.display = 'block';
     });
+
+    socket.on("resumeSessionError", () => {
+        clearSessionToken();
+    });
+
+    socket.on("guestLoginSuccess", data => {
+        currentUser = data.username;
+        userProfile = {
+            ...data,
+            isGuest: true,
+            friends: [],
+            requests: []
+        };
+        clearSessionToken();
+        loginModal.classList.add("hidden");
+        showNotification(`🎉 Convidado conectado como ${data.username}!`, "green");
+
+        loginSection.classList.add('hidden');
+        playSection.classList.remove('hidden');
+        playerNameDisplay.textContent = currentUser;
+
+        if (menuProfileIcon) menuProfileIcon.style.display = 'none';
+    });
+
+    socket.on("commandListState", ({ enabled, commands }) => {
+        applyCommandList(enabled, commands);
+    });
     // =================================================================
     // --- FIM DA LÓGICA DE LOGIN MODIFICADA ---
     // =================================================================
@@ -282,7 +370,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // =================================================================
     playGameBtn.addEventListener('click', () => {
         if (!currentUser) {
-            showNotification("⚠️ Você precisa fazer login para jogar!", "red");
+            showNotification("⚠️ Você precisa fazer login ou entrar como convidado para jogar!", "red");
             return;
         }
 
@@ -313,7 +401,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // =================================================================
 
     socket.on("loginError", msg => showNotification("❌ " + msg, "red"));
-
     // --- Perfil do JOGO ---
     const profileContainer = document.getElementById("profileBallContainer");
 

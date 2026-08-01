@@ -157,9 +157,12 @@ function handleChatCommand(socket, player, raw) {
 }
 
 const socketLimits = new Map();
+const sessionTokens = new Map();
+const guestSessions = new Map();
 const MAX_USERNAME_LENGTH = 24;
 const MAX_PASSWORD_LENGTH = 128;
 const MAX_CHAT_LENGTH = 200;
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 
 function isPlainObject(value) {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -195,6 +198,41 @@ function publicUser(user) {
     if (!user) return null;
     const { password, ...safeUser } = user;
     return safeUser;
+}
+
+function createSessionToken() {
+    return crypto.randomBytes(24).toString('hex');
+}
+
+function rememberSessionToken(entry) {
+    const token = createSessionToken();
+    sessionTokens.set(token, {
+        ...entry,
+        expiresAt: Date.now() + SESSION_TTL_MS
+    });
+    return token;
+}
+
+function getSessionEntry(token) {
+    const entry = sessionTokens.get(token);
+    if (!entry) return null;
+    if (Date.now() > entry.expiresAt) {
+        sessionTokens.delete(token);
+        return null;
+    }
+    return entry;
+}
+
+function generateGuestName() {
+    const checkedNames = new Set(Object.keys(users));
+    for (const guestName of guestSessions.values()) checkedNames.add(guestName);
+
+    let candidate = '';
+    do {
+        candidate = `Guest${Math.floor(1000 + Math.random() * 9000)}`;
+    } while (checkedNames.has(candidate));
+
+    return candidate;
 }
 
 function rateLimit(socket, key, limit, intervalMs) {
@@ -1877,7 +1915,17 @@ io.on('connection', (socket) => {
         playerEntry.isArtist = ARTIST_USERNAMES.includes(username);
     }
 
-    socket.emit("registerSuccess", publicUser(users[username]));
+    const sessionToken = rememberSessionToken({
+        type: 'account',
+        username,
+        socketId: socket.id,
+        createdAt: Date.now()
+    });
+
+    socket.emit("registerSuccess", {
+        ...publicUser(users[username]),
+        sessionToken
+    });
 });
 
 socket.on("login", (payload) => {
@@ -1902,7 +1950,17 @@ if (oldSocketId && oldSocketId !== socket.id) {
         users[username].password = hashPassword(password);
         saveUsers();
     }
-    socket.emit("loginSuccess", publicUser(users[username]));
+    const sessionToken = rememberSessionToken({
+        type: 'account',
+        username,
+        socketId: socket.id,
+        createdAt: Date.now()
+    });
+
+    socket.emit("loginSuccess", {
+        ...publicUser(users[username]),
+        sessionToken
+    });
 
     const player = ensurePlayer(socket);
     if (player) {
@@ -1925,6 +1983,45 @@ if (oldSocketId && oldSocketId !== socket.id) {
         saveLinks();
         socket.broadcast.emit("broadcastLink", parsedUrl.toString());
     });
+    socket.on("resumeSession", (payload) => {
+        if (!rateLimit(socket, 'resumeSession', 10, 60000) || !isPlainObject(payload)) return;
+        const token = typeof payload.sessionToken === 'string' ? payload.sessionToken : '';
+        const sessionEntry = getSessionEntry(token);
+        if (!sessionEntry || sessionEntry.type !== 'account') return socket.emit('resumeSessionError');
+
+        const username = cleanUsername(sessionEntry.username);
+        if (!username || !users[username]) return socket.emit('resumeSessionError');
+
+        const oldSocketId = sockets[username];
+        if (oldSocketId && oldSocketId !== socket.id) return socket.emit('resumeSessionError');
+
+        socket.username = username;
+        sockets[username] = socket.id;
+        socket.emit('loginSuccess', {
+            ...publicUser(users[username]),
+            sessionToken: token
+        });
+
+        const player = ensurePlayer(socket);
+        if (player) {
+            player.name = username;
+            player.isDev = DEV_USERNAMES.includes(username);
+            player.isArtist = ARTIST_USERNAMES.includes(username);
+        }
+    });
+
+    socket.on("guestLogin", () => {
+        if (!rateLimit(socket, 'guestLogin', 5, 60000)) return;
+        const guestName = generateGuestName();
+        socket.isGuest = true;
+        socket.username = guestName;
+        guestSessions.set(socket.id, guestName);
+        socket.emit('guestLoginSuccess', {
+            username: guestName,
+            isGuest: true
+        });
+    });
+
     socket.on("checkUserExists", (username, callback) => {
         if (typeof callback === 'function' && rateLimit(socket, 'checkUserExists', 30, 60000)) {
             callback(typeof username === 'string' && !!users[username.trim()]);
@@ -2651,10 +2748,14 @@ if (oldSocketId && oldSocketId !== socket.id) {
         const player = authenticatedPlayer(socket);
         if (player && rateLimit(socket, 'sendMessage', 8, 10000) && typeof text === 'string' && text.trim().length > 0) {
             const safeText = text.trim().slice(0, MAX_CHAT_LENGTH);
-            if (safeText.startsWith('/')) {
-                handleChatCommand(socket, player, safeText);
-                return;
-            }
+            if (socket.isGuest) {
+                socket.emit('newMessage', {
+                    name: 'Server',
+                    text: 'Only registered players can use chat.',
+                    isZombie: false
+                });
+                return;
+            }
             io.emit('newMessage', {
                 name: player.name,
                 text: safeText,
