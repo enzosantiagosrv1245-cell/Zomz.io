@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const playSection = document.getElementById('play-section');
     const playGameBtn = document.getElementById('playGameBtn');
     const guestPlayBtn = document.getElementById('guestPlayBtn');
+    const playerNameDisplay = document.getElementById('playerName');
 
 // The old menu background animation is no longer needed.
     // drawCanvas() was removed.

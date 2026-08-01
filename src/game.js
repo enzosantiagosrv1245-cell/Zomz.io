@@ -2,6 +2,7 @@ const DEV_USERNAMES = ['Eddie', 'Mingau', 'SeuNomeAqui'];
 const ARTIST_USERNAMES = ['Harley'];
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+const zoomLevel = 0.67;
 // const socket = io(); // agora inicia no html msm
 
 
@@ -2209,7 +2210,6 @@ function sendNetworkInput() {
     if (myId && gameState.players[myId]) {
         const me = gameState.players[myId];
         const rot = getPlayerAngle(me);
-        const zoomLevel = 0.67;
         const cameraX = (me.x + me.width / 2) - canvas.width / (2 * zoomLevel);
         const cameraY = (me.y + me.height / 2) - canvas.height / (2 * zoomLevel);
         const worldMouse = {
