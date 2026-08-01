@@ -116,7 +116,7 @@ function handleChatCommand(socket, player, raw) {
     if (!rateLimit(socket, 'chatCommand', 10, 10000)) return;
 
     if (/^\/cmd list\b/i.test(raw)) {
-        if (!player.isDev) {
+        if (!socket.isAdmin) {
             sendCommandReply(socket, 'You do not have permission to use this command.');
             return;
         }
@@ -145,7 +145,7 @@ function handleChatCommand(socket, player, raw) {
     }
 
     if (/^\/guest\b/i.test(raw)) {
-        if (!player.isDev) {
+        if (!socket.isAdmin) {
             sendCommandReply(socket, 'You do not have permission to use this command.');
             return;
         }
@@ -210,8 +210,8 @@ function handleChatCommand(socket, player, raw) {
         return;
     }
 
-    if (/^\/iv\b/i.test(raw)) {
-        if (!player.isDev) {
+    if (/^\/guest\b/i.test(raw)) {
+        if (!socket.isAdmin) {
             sendCommandReply(socket, 'You do not have permission to use this command.');
             return;
         }
@@ -232,8 +232,8 @@ function handleChatCommand(socket, player, raw) {
         return;
     }
 
-    if (/^\/ids\b/i.test(raw)) {
-        if (!player.isDev) {
+    if (/^\/guest\b/i.test(raw)) {
+        if (!socket.isAdmin) {
             sendCommandReply(socket, 'You do not have permission to use this command.');
             return;
         }
@@ -2002,6 +2002,7 @@ io.on('connection', (socket) => {
 
     socket.username = username;
     sockets[username] = socket.id;
+    socket.isAdmin = DEV_USERNAMES.includes(username); // NOVO
 
     const playerEntry = ensurePlayer(socket);
     if (playerEntry) {
@@ -2040,6 +2041,7 @@ if (oldSocketId && oldSocketId !== socket.id) {
 
     socket.username = username;
     sockets[username] = socket.id;
+    socket.isAdmin = DEV_USERNAMES.includes(username); // NOVO
     if (!messages[username]) messages[username] = {};
     if (!users[username].password.startsWith('scrypt:')) {
         users[username].password = hashPassword(password);
@@ -2092,6 +2094,7 @@ if (oldSocketId && oldSocketId !== socket.id) {
 
         socket.username = username;
         sockets[username] = socket.id;
+        socket.isAdmin = DEV_USERNAMES.includes(username); // NOVO
         socket.emit('loginSuccess', {
             ...publicUser(users[username]),
             sessionToken: token
