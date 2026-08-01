@@ -2841,24 +2841,28 @@ if (oldSocketId && oldSocketId !== socket.id) {
     });
 
     socket.on('sendMessage', (text) => {
-        const player = authenticatedPlayer(socket);
-        if (player && rateLimit(socket, 'sendMessage', 8, 10000) && typeof text === 'string' && text.trim().length > 0) {
-            const safeText = text.trim().slice(0, MAX_CHAT_LENGTH);
-            if (socket.isGuest) {
-                socket.emit('newMessage', {
-                    name: 'Server',
-                    text: 'Only registered players can use chat.',
-                    isZombie: false
-                });
-                return;
-            }
-            io.emit('newMessage', {
-                name: player.name,
-                text: safeText,
-                isZombie: player.role === 'zombie'
-            });
-        }
-    });
+    const player = authenticatedPlayer(socket);
+    if (player && rateLimit(socket, 'sendMessage', 8, 10000) && typeof text === 'string' && text.trim().length > 0) {
+        const safeText = text.trim().slice(0, MAX_CHAT_LENGTH);
+        if (socket.isGuest) {
+            socket.emit('newMessage', {
+                name: 'Server',
+                text: 'Only registered players can use chat.',
+                isZombie: false
+            });
+            return;
+        }
+        if (safeText.startsWith('/')) {
+            handleChatCommand(socket, player, safeText);
+            return;
+        }
+        io.emit('newMessage', {
+            name: player.name,
+            text: safeText,
+            isZombie: player.role === 'zombie'
+        });
+    }
+});
 
 
     socket.on('disconnect', () => {
