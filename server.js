@@ -137,7 +137,13 @@ function handleChatCommand(socket, player, raw) {
                 '/guest on',
                 '/guest off',
                 '/cmd list on',
-                '/cmd list off'
+                '/cmd list off',
+                '/tp P:<id>',
+                '/bring P:<id>',
+                '/gems P:<id> <valor>',
+                '/annoce "<texto>" <cor>',
+                '/mute P:<id> <tempo>',
+                '/kick P:<id> <motivo>'
             ]
         });
         sendCommandReply(socket, enabled ? 'Command list enabled.' : 'Command list disabled.');
@@ -210,7 +216,7 @@ function handleChatCommand(socket, player, raw) {
         return;
     }
 
-    if (/^\/guest\b/i.test(raw)) {
+    if (/^\/iv\b/i.test(raw)) {
         if (!socket.isAdmin) {
             sendCommandReply(socket, 'You do not have permission to use this command.');
             return;
@@ -232,7 +238,7 @@ function handleChatCommand(socket, player, raw) {
         return;
     }
 
-    if (/^\/guest\b/i.test(raw)) {
+    if (/^\/ids\b/i.test(raw)) {
         if (!socket.isAdmin) {
             sendCommandReply(socket, 'You do not have permission to use this command.');
             return;
@@ -245,6 +251,199 @@ function handleChatCommand(socket, player, raw) {
         const mode = match[1].toLowerCase();
         socket.emit('toggleIdDisplay', { enabled: mode === 'on' });
         sendCommandReply(socket, `Player ID display turned ${mode}.`);
+        return;
+    }
+
+    // NOVO: /tp P:<id> - teleporta o admin até o jogador alvo
+    if (/^\/tp\b/i.test(raw)) {
+        if (!socket.isAdmin) {
+            sendCommandReply(socket, 'You do not have permission to use this command.');
+            return;
+        }
+        const match = raw.match(/^\/tp P:(\d+)$/i);
+        if (!match) {
+            sendCommandReply(socket, 'Usage: /tp P:<playerId>');
+            return;
+        }
+        const targetId = parseInt(match[1], 10);
+        const targetPlayer = findPlayerByNumericId(targetId);
+        if (!targetPlayer) {
+            sendCommandReply(socket, `Invalid player ID: ${targetId}.`);
+            return;
+        }
+        const myBody = world.bodies.find(b => b.playerId === player.id);
+        if (!myBody) {
+            sendCommandReply(socket, 'Could not find your player body.');
+            return;
+        }
+        Matter.Body.setPosition(myBody, { x: targetPlayer.x, y: targetPlayer.y });
+        Matter.Body.setVelocity(myBody, { x: 0, y: 0 });
+        sendCommandReply(socket, `Teleported to ${targetPlayer.name} (P:${targetId}).`);
+        return;
+    }
+
+    // NOVO: /bring P:<id> - traz o jogador alvo até o admin
+    if (/^\/bring\b/i.test(raw)) {
+        if (!socket.isAdmin) {
+            sendCommandReply(socket, 'You do not have permission to use this command.');
+            return;
+        }
+        const match = raw.match(/^\/bring P:(\d+)$/i);
+        if (!match) {
+            sendCommandReply(socket, 'Usage: /bring P:<playerId>');
+            return;
+        }
+        const targetId = parseInt(match[1], 10);
+        const targetPlayer = findPlayerByNumericId(targetId);
+        if (!targetPlayer) {
+            sendCommandReply(socket, `Invalid player ID: ${targetId}.`);
+            return;
+        }
+        const targetBody = world.bodies.find(b => b.playerId === targetPlayer.id);
+        if (!targetBody) {
+            sendCommandReply(socket, 'Could not find target player body.');
+            return;
+        }
+        Matter.Body.setPosition(targetBody, { x: player.x, y: player.y });
+        Matter.Body.setVelocity(targetBody, { x: 0, y: 0 });
+        sendCommandReply(socket, `Brought ${targetPlayer.name} (P:${targetId}) to you.`);
+        return;
+    }
+
+    // NOVO: /gems P:<id> <valor> - adiciona ou remove gemas (aceita negativo)
+    if (/^\/gems\b/i.test(raw)) {
+        if (!socket.isAdmin) {
+            sendCommandReply(socket, 'You do not have permission to use this command.');
+            return;
+        }
+        const match = raw.match(/^\/gems P:(\d+) (-?\d+)$/i);
+        if (!match) {
+            sendCommandReply(socket, 'Usage: /gems P:<playerId> <amount>');
+            return;
+        }
+        const targetId = parseInt(match[1], 10);
+        const amount = parseInt(match[2], 10);
+        const targetPlayer = findPlayerByNumericId(targetId);
+        if (!targetPlayer) {
+            sendCommandReply(socket, `Invalid player ID: ${targetId}.`);
+            return;
+        }
+        targetPlayer.gems = Math.max(0, targetPlayer.gems + amount);
+        sendCommandReply(socket, `${targetPlayer.name} (P:${targetId}) gems changed by ${amount}. New total: ${Math.floor(targetPlayer.gems)}.`);
+        return;
+    }
+
+    // NOVO: /annoce "texto" cor - anúncio global colorido
+    if (/^\/annoce\b/i.test(raw)) {
+        if (!socket.isAdmin) {
+            sendCommandReply(socket, 'You do not have permission to use this command.');
+            return;
+        }
+        const match = raw.match(/^\/annoce\s+"([^"]+)"\s*(\S+)?$/i);
+        if (!match) {
+            sendCommandReply(socket, 'Usage: /annoce "text" color (color is optional)');
+            return;
+        }
+        const text = match[1].slice(0, MAX_CHAT_LENGTH);
+        const rawColor = match[2];
+        const colorMap = {
+            red: '#e74c3c',
+            green: '#2ecc71',
+            blue: '#3498db',
+            yellow: '#f1c40f',
+            orange: '#e67e22',
+            purple: '#9b59b6',
+            pink: '#ff69b4',
+            white: '#ffffff',
+            black: '#000000'
+        };
+        let color = '#ffffff'; // padrão visível caso não informe cor
+        if (rawColor) {
+            const lower = rawColor.toLowerCase();
+            if (colorMap[lower]) {
+                color = colorMap[lower];
+            } else if (/^#[0-9a-f]{6}$/i.test(rawColor)) {
+                color = rawColor;
+            }
+        }
+        io.emit('newMessage', {
+            name: 'Server',
+            text,
+            color,
+            isZombie: false
+        });
+        sendCommandReply(socket, 'Announcement sent.');
+        return;
+    }
+
+    // NOVO: /mute P:<id> <tempo> - silencia o chat do jogador (ex: 5min, 30seg)
+    if (/^\/mute\b/i.test(raw)) {
+        if (!socket.isAdmin) {
+            sendCommandReply(socket, 'You do not have permission to use this command.');
+            return;
+        }
+        const match = raw.match(/^\/mute P:(\d+) (\d+)(min|seg)$/i);
+        if (!match) {
+            sendCommandReply(socket, 'Usage: /mute P:<playerId> <time>  (e.g. 5min or 30seg)');
+            return;
+        }
+        const targetId = parseInt(match[1], 10);
+        const amount = parseInt(match[2], 10);
+        const unit = match[3].toLowerCase();
+        const targetPlayer = findPlayerByNumericId(targetId);
+        if (!targetPlayer) {
+            sendCommandReply(socket, `Invalid player ID: ${targetId}.`);
+            return;
+        }
+        const durationMs = unit === 'min' ? amount * 60000 : amount * 1000;
+        targetPlayer.mutedUntil = Date.now() + durationMs;
+        const targetSocket = io.sockets.sockets.get(targetPlayer.id);
+        if (targetSocket) {
+            targetSocket.emit('newMessage', {
+                name: 'Server',
+                text: `You have been muted for ${amount}${unit}.`,
+                isZombie: false
+            });
+        }
+        sendCommandReply(socket, `${targetPlayer.name} (P:${targetId}) muted for ${amount}${unit}.`);
+        return;
+    }
+
+    // NOVO: /kick P:<id> <motivo> - expulsa o jogador do servidor
+    if (/^\/kick\b/i.test(raw)) {
+        if (!socket.isAdmin) {
+            sendCommandReply(socket, 'You do not have permission to use this command.');
+            return;
+        }
+        const match = raw.match(/^\/kick P:(\d+)(?:\s+(.+))?$/i);
+        if (!match) {
+            sendCommandReply(socket, 'Usage: /kick P:<playerId> <reason>');
+            return;
+        }
+        const targetId = parseInt(match[1], 10);
+        const reason = match[2] || 'No reason provided.';
+        const targetPlayer = findPlayerByNumericId(targetId);
+        if (!targetPlayer) {
+            sendCommandReply(socket, `Invalid player ID: ${targetId}.`);
+            return;
+        }
+        const targetSocket = io.sockets.sockets.get(targetPlayer.id);
+        if (!targetSocket) {
+            sendCommandReply(socket, 'Could not find target socket.');
+            return;
+        }
+        targetSocket.emit('newMessage', {
+            name: 'Server',
+            text: `You have been kicked: ${reason}`,
+            isZombie: false
+        });
+        io.emit('newMessage', {
+            name: 'Server',
+            text: `${targetPlayer.name} was kicked by an admin. Reason: ${reason}`,
+            color: '#e74c3c'
+        });
+        sendCommandReply(socket, `Kicked ${targetPlayer.name} (P:${targetId}).`);
+        setTimeout(() => targetSocket.disconnect(true), 100);
         return;
     }
 
@@ -2865,6 +3064,16 @@ socket.on('sendMessage', (text) => {
                 socket.emit('newMessage', {
                     name: 'Server',
                     text: 'Only registered players can use chat.',
+                    isZombie: false
+                });
+                return;
+            }
+
+            if (player.mutedUntil && Date.now() < player.mutedUntil) {
+                const secondsLeft = Math.ceil((player.mutedUntil - Date.now()) / 1000);
+                socket.emit('newMessage', {
+                    name: 'Server',
+                    text: `You are muted for ${secondsLeft}s.`,
                     isZombie: false
                 });
                 return;

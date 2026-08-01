@@ -1531,7 +1531,7 @@ function drawChat() {
  ctx.font = 'bold 18px Arial';
 const isDevMsg = DEV_USERNAMES.includes(msg.name);
 const isArtistMsg = ARTIST_USERNAMES.includes(msg.name);
-ctx.fillStyle = msg.name === 'Server' ? '#FFD700'
+ctx.fillStyle = msg.name === 'Server' ? (msg.color || '#FFD700')
     : isDevMsg ? '#FF6600'
     : isArtistMsg ? '#FF69B4'
     : (msg.isZombie ? '#2ecc71' : '#3498db');
