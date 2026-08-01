@@ -626,6 +626,9 @@ function draw() {
     const me = gameState.players[myId];
     const hasGravityGloves = me && me.inventory && me.inventory.find(i => i && i.id === 'gravityGlove');
     const unmovableObjectIds = ['atm'];
+    const meRect = { x: me.x, y: me.y, width: me.width, height: me.height };
+    const mirroredSunshadeRect1 = MIRRORED_SUNSHADE_RECT_1;
+    const mirroredSunshadeRect2 = MIRRORED_SUNSHADE_RECT_2;
 
     const cameraX = (me.x + me.width / 2) - canvas.width / (2 * zoomLevel);
     const cameraY = (me.y + me.height / 2) - canvas.height / (2 * zoomLevel);
