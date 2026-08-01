@@ -1102,7 +1102,24 @@ if (isDev) {
         }
     }
 
-    // ALTERADO: Lógica para desenhar os guarda-sóis e suas versões espelhadas
+
+// ALTERADO: Lógica para desenhar os guarda-sóis e suas versões espelhadas
+
+    ctx.save();
+    const isUnderSunshade1 = meRect.x < SUNSHADE_RECT_1.x + SUNSHADE_RECT_1.width && meRect.x + meRect.width > SUNSHADE_RECT_1.x && meRect.y < SUNSHADE_RECT_1.y + SUNSHADE_RECT_1.height && meRect.y + meRect.height > SUNSHADE_RECT_1.y;
+    if (isUnderSunshade1) {
+        ctx.globalAlpha = 0.4;
+    }
+    ctx.drawImage(sunshadeII, SUNSHADE_RECT_1.x, SUNSHADE_RECT_1.y, SUNSHADE_RECT_1.width, SUNSHADE_RECT_1.height);
+    ctx.restore();
+
+    ctx.save();
+    const isUnderSunshade2 = meRect.x < SUNSHADE_RECT_2.x + SUNSHADE_RECT_2.width && meRect.x + meRect.width > SUNSHADE_RECT_2.x && meRect.y < SUNSHADE_RECT_2.y + SUNSHADE_RECT_2.height && meRect.y + meRect.height > SUNSHADE_RECT_2.y;
+    if (isUnderSunshade2) {
+        ctx.globalAlpha = 0.4;
+    }
+    ctx.drawImage(sunshade, SUNSHADE_RECT_2.x, SUNSHADE_RECT_2.y, SUNSHADE_RECT_2.width, SUNSHADE_RECT_2.height);
+    ctx.restore();
 
     ctx.save();
     const isUnderMirroredSunshade1 = meRect.x < mirroredSunshadeRect1.x + mirroredSunshadeRect1.width && meRect.x + meRect.width > mirroredSunshadeRect1.x && meRect.y < mirroredSunshadeRect1.y + mirroredSunshadeRect1.height && meRect.y + meRect.height > mirroredSunshadeRect1.y;
