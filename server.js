@@ -2098,18 +2098,25 @@ if (oldSocketId && oldSocketId !== socket.id) {
     });
 
     socket.on("guestLogin", () => {
-        if (!rateLimit(socket, 'guestLogin', 5, 60000)) return;
-        const guestName = generateGuestName();
-        socket.accountUsername = null;
-        socket.isGuest = true;
-        socket.guestChatAllowed = false;
-        socket.username = guestName;
-        guestSessions.set(socket.id, guestName);
-        socket.emit('guestLoginSuccess', {
-            username: guestName,
-            isGuest: true
-        });
+    if (!rateLimit(socket, 'guestLogin', 5, 60000)) return;
+    const guestName = generateGuestName();
+    socket.accountUsername = null;
+    socket.isGuest = true;
+    socket.guestChatAllowed = false;
+    socket.username = guestName;
+    guestSessions.set(socket.id, guestName);
+    socket.emit('guestLoginSuccess', {
+        username: guestName,
+        isGuest: true
     });
+
+    const player = ensurePlayer(socket);
+    if (player) {
+        player.name = guestName;
+        player.isDev = DEV_USERNAMES.includes(guestName);
+        player.isArtist = ARTIST_USERNAMES.includes(guestName);
+    }
+});
 
     socket.on("checkUserExists", (username, callback) => {
         if (typeof callback === 'function' && rateLimit(socket, 'checkUserExists', 30, 60000)) {

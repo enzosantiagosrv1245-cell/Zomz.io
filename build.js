@@ -54,7 +54,7 @@ function build() {
 
     for (const file of FILES) {
         const srcPath = path.join(SRC_DIR, file);
-        const outPath = path.join(OUT_DIR, file);
+        const outPaath = path.join(OUT_DIR, file);
 
         if (!fs.existsSync(srcPath)) {
             throw new Error(`Arquivo-fonte não encontrado: ${srcPath}`);
