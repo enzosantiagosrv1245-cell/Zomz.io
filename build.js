@@ -39,7 +39,9 @@ const OBFUSCATOR_OPTIONS = {
     // variáveis/funções globais (ex.: socket). Renomear quebraria o jogo.
     renameGlobals: false,
     identifierNamesGenerator: 'hexadecimal',
-    selfDefending: true,
+    // Desativado para evitar que o bundle gere anti-debug / console.clear spam
+    // no navegador e polua o console do jogador.
+    selfDefending: false,
     stringArray: true,
     stringArrayEncoding: ['base64'],
     stringArrayThreshold: 0.75,

@@ -305,10 +305,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // Chama a função para iniciar o seu jogo!
         if (typeof startGame === 'function') {
-            console.log("Chamando a função startGame() de game.js...");
             startGame(currentUser);
-        } else {
-            console.error("ERRO: A função startGame() não foi encontrada.");
         }
     });
     // =================================================================
