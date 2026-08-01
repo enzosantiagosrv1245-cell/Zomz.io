@@ -4,10 +4,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const loginSection = document.getElementById('login-section');
     const playSection = document.getElementById('play-section');
     const playGameBtn = document.getElementById('playGameBtn');
-    const playerNameDisplay = document.getElementById('playerName');
+    const guestPlayBtn = document.getElementById('guestPlayBtn');
 
-    // --- Não precisamos mais da animação de fundo do menu ---
-    // A função drawCanvas() foi removida.
+// The old menu background animation is no longer needed.
+    // drawCanvas() was removed.
 
     const SESSION_TOKEN_KEY = 'zomz-session-token';
     let currentUser = null;
@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let linkQueue = [];
     let menuProfileIcon = null;
     let menuProfilePanel = null;
-    let menuProfileOverlay = null; // Para o fundo escurecido
+    let menuProfileOverlay = null; // Dark overlay background
     let commandListPanel = null;
 
     function storeSessionToken(token) {
@@ -70,7 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // (O seu código de criação de perfil permanece o mesmo, sem alterações)
     // =================================================================
     function createMenuProfile() {
-        // --- CRIA O ÍCONE (BOLINHA CIANO) ---
+        // Create the profile icon
         menuProfileIcon = document.createElement("div");
         menuProfileIcon.style.position = 'fixed';
         menuProfileIcon.style.top = '20px';
@@ -81,11 +81,11 @@ document.addEventListener("DOMContentLoaded", () => {
         menuProfileIcon.style.borderRadius = '50%';
         menuProfileIcon.style.cursor = 'pointer';
         menuProfileIcon.style.zIndex = '2000';
-        menuProfileIcon.title = 'Configurações de Usuário';
-        menuProfileIcon.style.display = 'none'; // Inicia oculto, aparece após o login
+menuProfileIcon.title = 'User settings';
+        menuProfileIcon.style.display = 'none'; // Starts hidden and appears after login
         document.body.appendChild(menuProfileIcon);
 
-        // --- CRIA O OVERLAY (FUNDO ESCURECIDO) ---
+        // Create the dark overlay background
         menuProfileOverlay = document.createElement('div');
         menuProfileOverlay.style.display = 'none';
         menuProfileOverlay.style.position = 'fixed';
@@ -97,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
         menuProfileOverlay.style.zIndex = '2499';
         document.body.appendChild(menuProfileOverlay);
 
-        // --- CRIA O PAINEL (INICIALMENTE OCULTO) ---
+        // Create the hidden profile panel
         menuProfilePanel = document.createElement('div');
         menuProfilePanel.style.display = 'none'; // Oculto por padrão
         menuProfilePanel.style.position = 'fixed';
@@ -131,44 +131,44 @@ document.addEventListener("DOMContentLoaded", () => {
             </style>
             
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2 style="margin: 0; color: #2ecc71;">Configurações</h2>
+                <h2 style="margin: 0; color: #2ecc71;">Settings</h2>
                 <button id="closeMenuProfilePanel" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">&times;</button>
             </div>
 
             <div style="display: flex; align-items: center; gap: 20px; background-color: #2a2a2e; padding: 20px; border-radius: 10px;">
                 <div id="menuProfilePic" style="width: 70px; height: 70px; border-radius: 50%; background-color: #3a3a3e; background-size: cover; background-position: center; border: 2px solid #2ecc71;"></div>
-                <span id="menuUsernameDisplay" style="font-size: 20px; font-weight: bold;">Visitante</span>
+                <span id="menuUsernameDisplay" style="font-size: 20px; font-weight: bold;">Guest</span>
             </div>
 
             <div class="profile-section">
-                <label>📷 Foto de Perfil (URL)</label>
+                <label>📷 Profile photo (URL)</label>
                 <div style="display: flex; gap: 10px;">
-                    <input type="text" id="menuPhotoInput" class="profile-input" placeholder="https://exemplo.com/imagem.png">
-                    <button id="menuChangePhotoBtn" class="profile-btn">Salvar</button>
+                    <input type="text" id="menuPhotoInput" class="profile-input" placeholder="https://example.com/image.png">
+                    <button id="menuChangePhotoBtn" class="profile-btn">Save</button>
                 </div>
             </div>
 
             <div class="profile-section">
-                <label>👤 Alterar Nome de Usuário</label>
+                <label>👤 Change username</label>
                  <div style="display: flex; gap: 10px;">
-                    <input type="text" id="menuNameInput" class="profile-input" placeholder="Novo nome">
-                    <button id="menuChangeNameBtn" class="profile-btn">Salvar</button>
+                    <input type="text" id="menuNameInput" class="profile-input" placeholder="New nickname">
+                    <button id="menuChangeNameBtn" class="profile-btn">Save</button>
                 </div>
             </div>
 
             <div class="profile-section">
-                <label>🔒 Alterar Senha</label>
+                <label>🔒 Change password</label>
                 <div style="display: flex; gap: 10px;">
-                    <input type="password" id="menuPasswordInput" class="profile-input" placeholder="Nova senha">
-                    <button id="menuChangePasswordBtn" class="profile-btn">Salvar</button>
+                    <input type="password" id="menuPasswordInput" class="profile-input" placeholder="New password">
+                    <button id="menuChangePasswordBtn" class="profile-btn">Save</button>
                 </div>
             </div>
             
             <div class="profile-section">
-                <label>🤝 Adicionar Amigo</label>
+                <label>🤝 Add friend</label>
                 <div style="display: flex; gap: 10px;">
-                    <input type="text" id="menuFriendInput" class="profile-input" placeholder="Nome do jogador">
-                    <button id="menuAddFriendBtn" class="profile-btn">Enviar</button>
+                    <input type="text" id="menuFriendInput" class="profile-input" placeholder="Player name">
+                    <button id="menuAddFriendBtn" class="profile-btn">Send</button>
                 </div>
             </div>
         `;
@@ -197,65 +197,65 @@ document.addEventListener("DOMContentLoaded", () => {
             menuProfileOverlay.style.display = 'none';
         }
 
-        // Fechar painel
+        // Close panel
         document.getElementById('closeMenuProfilePanel').addEventListener('click', closePanel);
         menuProfileOverlay.addEventListener('click', closePanel);
 
 
-        // Salvar foto
+        // Save photo
         document.getElementById('menuChangePhotoBtn').addEventListener('click', () => {
-            if (!currentUser) return showNotification("⚠️ Você precisa estar logado!", "red");
+            if (!currentUser) return showNotification("⚠️ You need to be logged in!", "red");
             const photoUrl = document.getElementById('menuPhotoInput').value.trim();
-            if (!photoUrl) return showNotification("⚠️ Insira uma URL!", "red");
+            if (!photoUrl) return showNotification("⚠️ Enter a URL!", "red");
             socket.emit("changePhoto", {
                 username: currentUser,
                 photo: photoUrl
             });
             document.getElementById('menuProfilePic').style.backgroundImage = `url('${photoUrl}')`;
             userProfile.photo = photoUrl; // Atualiza localmente
-            showNotification("✅ Foto de perfil atualizada!", "green");
+            showNotification("✅ Profile photo updated!", "green");
         });
 
-        // Salvar nome
+        // Save name
         document.getElementById('menuChangeNameBtn').addEventListener('click', () => {
-            if (!currentUser) return showNotification("⚠️ Você precisa estar logado!", "red");
-            const newName = document.getElementById('menuNameInput').value.trim();
-            if (!newName) return showNotification("⚠️ Insira um novo nome!", "red");
+            if (!currentUser) return showNotification("⚠️ You need to be logged in!", "red");
+            const newName = document.getElementById('menuNameInput').value.trim();
+            if (!newName) return showNotification("⚠️ Enter a new name!", "red");
             socket.emit("changeName", {
                 oldName: currentUser,
                 newName: newName
             });
-            showNotification("✅ Nome alterado! Faça login novamente com o novo nome.", "blue");
+            showNotification("✅ Name changed. Please log in again with the new name.", "blue");
             setTimeout(() => location.reload(), 2000);
         });
 
-        // Salvar senha
+        // Save password
         document.getElementById('menuChangePasswordBtn').addEventListener('click', () => {
-            if (!currentUser) return showNotification("⚠️ Você precisa estar logado!", "red");
-            const newPass = document.getElementById('menuPasswordInput').value.trim();
-            if (!newPass) return showNotification("⚠️ Insira uma nova senha!", "red");
+            if (!currentUser) return showNotification("⚠️ You need to be logged in!", "red");
+            const newPass = document.getElementById('menuPasswordInput').value.trim();
+            if (!newPass) return showNotification("⚠️ Enter a new password!", "red");
             socket.emit("changePassword", {
                 username: currentUser,
                 newPass: newPass
             });
-            showNotification("✅ Senha alterada com sucesso!", "green");
+            showNotification("✅ Password changed successfully!", "green");
         });
 
-        // Adicionar amigo
+        // Add friend
         document.getElementById('menuAddFriendBtn').addEventListener('click', () => {
-            if (!currentUser) return showNotification("⚠️ Você precisa estar logado para adicionar amigos!", "red");
-            const target = document.getElementById('menuFriendInput').value.trim();
-            if (!target) return showNotification("⚠️ Insira o nome de um jogador!", "red");
-            if (target === currentUser) return showNotification("⚠️ Não pode enviar para você mesmo", "red");
+if (!currentUser) return showNotification("⚠️ You need to be logged in to add friends!", "red");
+            const target = document.getElementById('menuFriendInput').value.trim();
+            if (!target) return showNotification("⚠️ Enter a player name!", "red");
+            if (target === currentUser) return showNotification("⚠️ You cannot send a request to yourself", "red");
 
             socket.emit("checkUserExists", target, exists => {
-                if (!exists) return showNotification("❌ Jogador não existe", "red");
+                if (!exists) return showNotification("❌ Player not found", "red");
                 socket.emit("friendRequest", {
                     from: currentUser,
                     to: target,
                     photo: userProfile.photo
                 });
-                showNotification("📩 Pedido enviado!", "green");
+                showNotification("📩 Friend request sent!", "green");
             });
         });
     }
@@ -276,13 +276,25 @@ document.addEventListener("DOMContentLoaded", () => {
     const usernameInput = document.getElementById("username");
     const passwordInput = document.getElementById("password");
 
+    if (loginBtn && loginModal) {
+        loginBtn.addEventListener("click", () => {
+            loginModal.classList.remove("hidden");
+        });
+    }
+
+    if (closeModalBtn && loginModal) {
+        closeModalBtn.addEventListener("click", () => {
+            loginModal.classList.add("hidden");
+        });
+    }
+
     if (registerBtn && usernameInput && passwordInput) {
         registerBtn.addEventListener("click", () => {
             const user = usernameInput.value.trim();
             const pass = passwordInput.value.trim();
-            if (!user || !pass) return showNotification("⚠️ Preencha todos os campos!", "red");
-            if (user.length < 3 || user.length > 24) return showNotification("O nome deve ter entre 3 e 24 caracteres.", "red");
-            if (pass.length < 8 || pass.length > 128) return showNotification("A senha deve ter entre 8 e 128 caracteres.", "red");
+            if (!user || !pass) return showNotification("⚠️ Please fill in all fields!", "red");
+            if (user.length < 3 || user.length > 24) return showNotification("Name must be between 3 and 24 characters.", "red");
+            if (pass.length < 8 || pass.length > 128) return showNotification("Password must be between 8 and 128 characters.", "red");
             socket.emit("register", {
                 username: user,
                 password: pass
@@ -294,7 +306,7 @@ document.addEventListener("DOMContentLoaded", () => {
         loginSubmitBtn.addEventListener("click", () => {
             const user = usernameInput.value.trim();
             const pass = passwordInput.value.trim();
-            if (!user || !pass) return showNotification("⚠️ Preencha todos os campos!", "red");
+            if (!user || !pass) return showNotification("⚠️ Please fill in all fields!", "red");
             socket.emit("login", {
                 username: user,
                 password: pass
@@ -304,6 +316,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (guestLoginBtn) {
         guestLoginBtn.addEventListener("click", () => {
+            socket.emit("guestLogin", {});
+        });
+    }
+
+    if (guestPlayBtn) {
+        guestPlayBtn.addEventListener("click", () => {
             socket.emit("guestLogin", {});
         });
     }
@@ -319,7 +337,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (data && typeof data.sessionToken === 'string') {
             storeSessionToken(data.sessionToken);
         }
-        showNotification(`✅ Conta criada com sucesso! Agora faça login.`, "green");
+        showNotification("Account created successfully. You can now log in.", "green");
     });
 
     socket.on("registerError", msg => showNotification("❌ " + msg, "red"));
@@ -334,14 +352,14 @@ document.addEventListener("DOMContentLoaded", () => {
             storeSessionToken(data.sessionToken);
         }
         loginModal.classList.add("hidden");
-        showNotification(`🎉 Login realizado! Bem-vindo, ${data.username}!`, "green");
+        showNotification("Login successful! Welcome, " + data.username + "!", "green");
 
-        // Atualiza a UI do menu para mostrar que o jogador está logado
+        // Update the menu UI to show the player is logged in
         loginSection.classList.add('hidden');
         playSection.classList.remove('hidden');
         playerNameDisplay.textContent = currentUser;
 
-        // Mostra o ícone de perfil no menu
+        // Show the profile icon in the menu
         if (menuProfileIcon) menuProfileIcon.style.display = 'block';
     });
 
@@ -359,7 +377,7 @@ document.addEventListener("DOMContentLoaded", () => {
         };
         clearSessionToken();
         loginModal.classList.add("hidden");
-        showNotification(`🎉 Convidado conectado como ${data.username}!`, "green");
+        showNotification("Guest connected as " + data.username + "!", "green");
 
         loginSection.classList.add('hidden');
         playSection.classList.remove('hidden');
@@ -380,7 +398,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // =================================================================
     playGameBtn.addEventListener('click', () => {
         if (!currentUser) {
-            showNotification("⚠️ Você precisa fazer login ou entrar como convidado para jogar!", "red");
+            showNotification("⚠️ You need to log in or play as a guest to start.", "red");
             return;
         }
 
@@ -388,10 +406,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const menuUI = document.getElementById('menu-ui');
         if (menuUI) menuUI.style.display = 'none';
 
-        // Esconde o ícone de perfil do menu
+        // Hide the menu profile icon
         if (menuProfileIcon) menuProfileIcon.style.display = 'none';
 
-        // Limpa o canvas para remover qualquer resquício do menu
+        // Clear the canvas to remove any menu leftovers
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -445,10 +463,10 @@ document.addEventListener("DOMContentLoaded", () => {
         menu.style.justifyContent = "flex-start";
         menu.innerHTML = `
         <div style="position: fixed; top: 75px; right: 20px; background-color: #111; border-radius: 5px; display: flex; flex-direction: column; gap: 5px; padding: 10px; z-index: 3000; border: 1px solid #444;">
-            <button id="profileMenuFriendsBtn">Amigos</button>
-            <button id="profileMenuSettingsBtn">Configurações</button>
-        </div>
-    `;
+            <button id="profileMenuFriendsBtn">Friends</button>
+            <button id="profileMenuSettingsBtn">Settings</button>
+        </div>
+    `;
 
         document.body.appendChild(menu);
 
@@ -496,7 +514,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!userProfile) return;
         if (!userProfile.requests.includes(from)) userProfile.requests.push(from);
         updateFriendsUI();
-        showNotification(`📩 Pedido de amizade de ${from}`, "blue");
+        showNotification("Friend request from " + from, "blue");
     });
 
     socket.on("friendAccepted", ({
@@ -506,7 +524,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!userProfile.friends.includes(from)) userProfile.friends.push(from);
         updateFriendsUI();
         renderChatFriends();
-        showNotification(`🤝 Você e ${from} agora são amigos!`, "green");
+        showNotification("You and " + from + " are now friends!", "green");
     });
 
     function updateFriendsUI() {
@@ -620,7 +638,7 @@ document.addEventListener("DOMContentLoaded", () => {
             msg
         });
         if (from === currentChat) appendMessage(from, msg);
-        showNotification(`💬 Nova mensagem de ${from}`, "blue");
+        showNotification("New message from " + from, "blue");
     });
 
     function appendMessage(sender, msg) {
