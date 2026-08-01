@@ -210,27 +210,6 @@ function handleChatCommand(socket, player, raw) {
         return;
     }
 
-        if (socket.isGuest && socket.accountUsername) {
-            const accountUsername = socket.accountUsername;
-            const guestName = socket.username;
-            socket.isGuest = false;
-            socket.guestChatAllowed = false;
-            socket.username = accountUsername;
-            guestSessions.delete(socket.id);
-
-            const guestPlayer = gameState.players[socket.id];
-            if (guestPlayer) guestPlayer.name = accountUsername;
-
-            if (sockets[guestName]) delete sockets[guestName];
-            sockets[accountUsername] = socket.id;
-            sendCommandReply(socket, `Guest mode disabled. Back to ${accountUsername}.`);
-            return;
-        }
-
-        sendCommandReply(socket, 'Guest mode is not enabled.');
-        return;
-    }
-
     if (/^\/iv\b/i.test(raw)) {
         if (!player.isDev) {
             sendCommandReply(socket, 'You do not have permission to use this command.');
@@ -253,7 +232,7 @@ function handleChatCommand(socket, player, raw) {
         return;
     }
 
-    if (/^\/ids\b/i.test(raw)){ {
+    if (/^\/ids\b/i.test(raw)) {
         if (!player.isDev) {
             sendCommandReply(socket, 'You do not have permission to use this command.');
             return;
