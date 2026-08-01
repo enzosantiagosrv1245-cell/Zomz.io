@@ -171,7 +171,11 @@ function handleChatCommand(socket, player, raw) {
             guestSessions.set(socket.id, guestName);
 
             const guestPlayer = gameState.players[socket.id];
-            if (guestPlayer) guestPlayer.name = guestName;
+            if (guestPlayer) {
+                guestPlayer.name = guestName;
+                guestPlayer.isDev = false;
+                guestPlayer.isArtist = false;
+            }
 
             if (socket.accountUsername && sockets[socket.accountUsername] === socket.id) {
                 delete sockets[socket.accountUsername];
@@ -180,6 +184,31 @@ function handleChatCommand(socket, player, raw) {
             sendCommandReply(socket, `Guest mode enabled as ${guestName}.`);
             return;
         }
+
+        if (socket.isGuest && socket.accountUsername) {
+            const accountUsername = socket.accountUsername;
+            const guestName = socket.username;
+            socket.isGuest = false;
+            socket.guestChatAllowed = false;
+            socket.username = accountUsername;
+            guestSessions.delete(socket.id);
+
+            const guestPlayer = gameState.players[socket.id];
+            if (guestPlayer) {
+                guestPlayer.name = accountUsername;
+                guestPlayer.isDev = DEV_USERNAMES.includes(accountUsername);
+                guestPlayer.isArtist = ARTIST_USERNAMES.includes(accountUsername);
+            }
+
+            if (sockets[guestName]) delete sockets[guestName];
+            sockets[accountUsername] = socket.id;
+            sendCommandReply(socket, `Guest mode disabled. Back to ${accountUsername}.`);
+            return;
+        }
+
+        sendCommandReply(socket, 'Guest mode is not enabled.');
+        return;
+    }
 
         if (socket.isGuest && socket.accountUsername) {
             const accountUsername = socket.accountUsername;
@@ -224,7 +253,7 @@ function handleChatCommand(socket, player, raw) {
         return;
     }
 
-    if (/^\/ids\b/i.test(raw)) {
+    if (/^\/ids\b/i.test(raw)){ {
         if (!player.isDev) {
             sendCommandReply(socket, 'You do not have permission to use this command.');
             return;
@@ -2840,29 +2869,32 @@ if (oldSocketId && oldSocketId !== socket.id) {
         }
     });
 
-    socket.on('sendMessage', (text) => {
-    const player = authenticatedPlayer(socket);
-    if (player && rateLimit(socket, 'sendMessage', 8, 10000) && typeof text === 'string' && text.trim().length > 0) {
-        const safeText = text.trim().slice(0, MAX_CHAT_LENGTH);
-        if (socket.isGuest) {
-            socket.emit('newMessage', {
-                name: 'Server',
-                text: 'Only registered players can use chat.',
-                isZombie: false
+socket.on('sendMessage', (text) => {
+        const player = authenticatedPlayer(socket);
+        if (player && rateLimit(socket, 'sendMessage', 8, 10000) && typeof text === 'string' && text.trim().length > 0) {
+            const safeText = text.trim().slice(0, MAX_CHAT_LENGTH);
+
+            if (safeText.startsWith('/')) {
+                handleChatCommand(socket, player, safeText);
+                return;
+            }
+
+            if (socket.isGuest && !socket.guestChatAllowed) {
+                socket.emit('newMessage', {
+                    name: 'Server',
+                    text: 'Only registered players can use chat.',
+                    isZombie: false
+                });
+                return;
+            }
+
+            io.emit('newMessage', {
+                name: player.name,
+                text: safeText,
+                isZombie: player.role === 'zombie'
             });
-            return;
         }
-        if (safeText.startsWith('/')) {
-            handleChatCommand(socket, player, safeText);
-            return;
-        }
-        io.emit('newMessage', {
-            name: player.name,
-            text: safeText,
-            isZombie: player.role === 'zombie'
-        });
-    }
-});
+    });
 
 
     socket.on('disconnect', () => {
