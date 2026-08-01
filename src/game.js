@@ -17,9 +17,12 @@ const zoomLevel = 0.67;
     // Estilos do chatInput foram movidos para o style.css pra melhorar a organização
     chatInput.maxLength = 57;
 
+    const MAX_CANVAS_WIDTH = 1920;
+    const MAX_CANVAS_HEIGHT = 1080;
+
     function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        canvas.width = Math.min(window.innerWidth, MAX_CANVAS_WIDTH);
+        canvas.height = Math.min(window.innerHeight, MAX_CANVAS_HEIGHT);
     }
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
@@ -128,6 +131,30 @@ const SUNSHADE_RECT_2 = { x: 4440, y: 1400, width: 320, height: 340 };
 const MIRRORED_SUNSHADE_RECT_1 = { ...SUNSHADE_RECT_1, y: 4000 - SUNSHADE_RECT_1.y - SUNSHADE_RECT_1.height };
 const MIRRORED_SUNSHADE_RECT_2 = { ...SUNSHADE_RECT_2, y: 4000 - SUNSHADE_RECT_2.y - SUNSHADE_RECT_2.height };
 
+// Chat compacto
+const CHAT_WIDTH = 300;
+const CHAT_LINE_HEIGHT = 17;
+const CHAT_MAX_VISIBLE_LINES = 7;
+const CHAT_PADDING = 8;
+const CHAT_TOGGLE_Y_OFFSET = 85;
+const CHAT_TOGGLE_HEIGHT = 22;
+const CHAT_TOGGLE_WIDTH = 75;
+const CHAT_GAP = 6;
+let isChatVisible = true;
+
+// Balões de fala
+const speechBubbles = {}; // playerId -> { text, expiresAt }
+const SPEECH_BUBBLE_DURATION = 4000;
+const SPEECH_BUBBLE_MAX_WIDTH = 180;
+
+// HUDs reduzidas
+const TOP_HUD_WIDTH = 320;
+const TOP_HUD_HEIGHT = 72;
+const COIN_HUD_WIDTH = 150;
+const COIN_HUD_HEIGHT = 42;
+const SPEED_HUD_WIDTH = 160;
+const SPEED_HUD_HEIGHT = 48;
+const PROFILE_ICON_RADIUS = 20;
 let myId = null;
 let gameState = {
     players: {},
@@ -203,6 +230,18 @@ socket.on('newMessage', (message) => {
     chatMessages.push(message);
     if (chatMessages.length > MAX_MESSAGES) {
         chatMessages.shift();
+    }
+
+    if (message.name && message.name !== 'Server') {
+        for (const pid in gameState.players) {
+            if (gameState.players[pid].name === message.name) {
+                speechBubbles[pid] = {
+                    text: message.text,
+                    expiresAt: Date.now() + SPEECH_BUBBLE_DURATION
+                };
+                break;
+            }
+        }
     }
 });
 
@@ -424,10 +463,16 @@ canvas.addEventListener('mousemove', function(event) {
 });
 
 canvas.addEventListener('mousedown', function(event) {
-    const profileIconRadius = 25;
-    const coinHudWidth = 180;
+        const chatToggleRect = getChatToggleRect();
+    if (isClickInside(mouse, chatToggleRect)) {
+        isChatVisible = !isChatVisible;
+        return;
+    }
+
+    const profileIconRadius = PROFILE_ICON_RADIUS;
+    const coinHudWidth = COIN_HUD_WIDTH;
     const profileIconX = canvas.width - coinHudWidth - 15 - profileIconRadius - 10;
-    const profileIconY = 15 + 50 / 2;
+    const profileIconY = 15 + COIN_HUD_HEIGHT / 2;
     const dist = Math.hypot(mouse.x - profileIconX, mouse.y - profileIconY);
 
     if (dist < profileIconRadius) {
@@ -611,6 +656,31 @@ canvas.addEventListener('wheel', function(event) {
 }, {
     passive: false
 });
+
+function wrapTextGeneric(ctx, text, maxWidth) {
+    const words = text.split(' ');
+    const lines = [];
+    let current = '';
+    for (let word of words) {
+        while (ctx.measureText(word).width > maxWidth) {
+            let cut = word.length;
+            while (cut > 1 && ctx.measureText(word.slice(0, cut)).width > maxWidth) cut--;
+            const chunk = word.slice(0, cut);
+            if (current) { lines.push(current); current = ''; }
+            lines.push(chunk);
+            word = word.slice(cut);
+        }
+        const test = current ? current + ' ' + word : word;
+        if (ctx.measureText(test).width > maxWidth && current) {
+            lines.push(current);
+            current = word;
+        } else {
+            current = test;
+        }
+    }
+    if (current) lines.push(current);
+    return lines.length ? lines : [''];
+}
 
 function draw() {
     if (!myId || !gameState.players || !gameState.players[myId]) {
@@ -1051,6 +1121,49 @@ function draw() {
             const nameX = player.x + player.width / 2;
             const nameY = player.y - 20;
 
+            const bubble = speechBubbles[playerId];
+if (bubble) {
+    if (Date.now() >= bubble.expiresAt) {
+        delete speechBubbles[playerId];
+    } else {
+        ctx.save();
+        ctx.font = '12px Arial';
+        const lines = wrapTextGeneric(ctx, bubble.text, SPEECH_BUBBLE_MAX_WIDTH - 16);
+        const lineHeight = 15;
+        const bubbleHeight = (lines.length * lineHeight) + 14;
+        let maxLineWidth = 0;
+        lines.forEach(l => { maxLineWidth = Math.max(maxLineWidth, ctx.measureText(l).width); });
+        const bubbleWidth = Math.min(SPEECH_BUBBLE_MAX_WIDTH, maxLineWidth + 16);
+        const bubbleCenterX = player.x + player.width / 2;
+        const bubbleX = bubbleCenterX - bubbleWidth / 2;
+        const bubbleY = player.y - 45 - bubbleHeight;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(bubbleX, bubbleY, bubbleWidth, bubbleHeight, [8]);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(bubbleCenterX - 6, bubbleY + bubbleHeight);
+        ctx.lineTo(bubbleCenterX + 6, bubbleY + bubbleHeight);
+        ctx.lineTo(bubbleCenterX, bubbleY + bubbleHeight + 8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        lines.forEach((line, i) => {
+            ctx.fillText(line, bubbleCenterX, bubbleY + 7 + (i * lineHeight));
+        });
+        ctx.restore();
+    }
+}
+
 if (isDev) {
     ctx.font = 'bold 20px Arial';
     const fullName = '⚙️ ' + player.name;
@@ -1077,7 +1190,16 @@ if (isDev) {
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 5;
     ctx.strokeText(player.name, nameX, nameY);
-    ctx.fillStyle = (player.role === 'zombie' || player.isSpying) ? '#2ecc71' : 'white';
+
+    let nameFillColor;
+    if (playerId === myId) {
+        nameFillColor = '#2ecc71'; // verde: só você vê seu próprio nome assim
+    } else if (player.role === 'zombie' || player.isSpying) {
+        nameFillColor = '#ff4d4d'; // vermelho: visível para todos quando é zumbi
+    } else {
+        nameFillColor = 'white'; // humano
+    }
+    ctx.fillStyle = nameFillColor;
     ctx.fillText(player.name, nameX, nameY);
 }
     }
@@ -1288,9 +1410,7 @@ function drawInstructionsMenu() {
 }
 
 function drawHudBackgrounds() {
-    ctx.save(); // Isola o estado de desenho da HUD
-
-    // Estilo aprimorado para os fundos da HUD
+    ctx.save();
     const mainGradient = ctx.createLinearGradient(0, 10, 0, 100);
     mainGradient.addColorStop(0, 'rgba(30, 30, 30, 0.85)');
     mainGradient.addColorStop(1, 'rgba(10, 10, 10, 0.75)');
@@ -1299,30 +1419,24 @@ function drawHudBackgrounds() {
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
     ctx.lineWidth = 2;
     ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = 8;
 
-    // HUD do topo (timer e status)
-    const topHudWidth = 400;
     ctx.beginPath();
-    ctx.roundRect(canvas.width / 2 - topHudWidth / 2, 10, topHudWidth, 90, [12]);
+    ctx.roundRect(canvas.width / 2 - TOP_HUD_WIDTH / 2, 10, TOP_HUD_WIDTH, TOP_HUD_HEIGHT, [10]);
     ctx.fill();
     ctx.stroke();
 
-    // HUD de gemas
-    const coinHudWidth = 180;
     ctx.beginPath();
-    ctx.roundRect(canvas.width - coinHudWidth - 15, 15, coinHudWidth, 50, [12]);
+    ctx.roundRect(canvas.width - COIN_HUD_WIDTH - 15, 15, COIN_HUD_WIDTH, COIN_HUD_HEIGHT, [10]);
     ctx.fill();
     ctx.stroke();
 
-    // HUD de velocidade
-    const rightHudWidth = 200;
     ctx.beginPath();
-    ctx.roundRect(canvas.width - rightHudWidth - 15, canvas.height - 75, rightHudWidth, 60, [12]);
+    ctx.roundRect(canvas.width - SPEED_HUD_WIDTH - 15, canvas.height - SPEED_HUD_HEIGHT - 15, SPEED_HUD_WIDTH, SPEED_HUD_HEIGHT, [10]);
     ctx.fill();
     ctx.stroke();
 
-    ctx.restore(); // Restaura o estado do canvas
+    ctx.restore();
 }
 
 
@@ -1338,7 +1452,7 @@ function drawHudText(me) {
     ctx.shadowOffsetY = 2;
 
     // --- HUD Superior ---
-    const topHudCenterY = 10 + 90 / 2;
+    const topHudCenterY = 10 + TOP_HUD_HEIGHT / 2;
     ctx.font = 'bold 40px Arial';
     if (gameState.gamePhase === 'waiting') {
         const seconds = gameState.startTime % 60;
@@ -1380,9 +1494,9 @@ function drawHudText(me) {
     const padding = 10;
     const totalContentWidth = iconSize + padding + textWidth;
 
-    const coinHudWidth = 180;
+    const coinHudWidth = COIN_HUD_WIDTH;
     const hudX = canvas.width - coinHudWidth - 15;
-    const hudCenterY = 15 + 50 / 2;
+    const hudCenterY = 15 + COIN_HUD_HEIGHT / 2;
 
     const contentStartX = hudX + (coinHudWidth - totalContentWidth) / 2;
     const iconX = contentStartX;
@@ -1413,8 +1527,8 @@ function drawInventory() {
 
     if (me.role === 'human') {
         const numSlots = me.inventorySlots || 1;
-        const slotSize = 80;
-        const gap = 15;
+        const slotSize = 64;
+        const gap = 12;
         const totalWidth = (numSlots * slotSize) + ((numSlots - 1) * gap);
         const startX = canvas.width / 2 - totalWidth / 2;
         const slotY = canvas.height - slotSize - 20;
@@ -1486,65 +1600,140 @@ function drawInventory() {
     }
 }
 
+function getChatToggleRect() {
+    return {
+        x: 15,
+        y: canvas.height - CHAT_TOGGLE_Y_OFFSET,
+        width: CHAT_TOGGLE_WIDTH,
+        height: CHAT_TOGGLE_HEIGHT
+    };
+}
+
+function buildWrappedChatEntries() {
+    const maxTextWidth = CHAT_WIDTH - (CHAT_PADDING * 2);
+    const entries = [];
+
+    for (const msg of chatMessages) {
+        const isDevMsg = DEV_USERNAMES.includes(msg.name);
+        const isArtistMsg = ARTIST_USERNAMES.includes(msg.name);
+        const nameColor = msg.name === 'Server' ? (msg.color || '#FFD700')
+            : isDevMsg ? '#FF6600'
+            : isArtistMsg ? '#FF69B4'
+            : (msg.isZombie ? '#ff4d4d' : '#3498db');
+        const displayName = isDevMsg ? '⚙️ ' + msg.name
+            : isArtistMsg ? '🎨 ' + msg.name
+            : msg.name;
+
+        ctx.font = 'bold 12px Arial';
+        const prefixWidth = ctx.measureText(displayName + ': ').width;
+
+        ctx.font = '12px Arial';
+        const firstLineMaxWidth = Math.max(20, maxTextWidth - prefixWidth);
+
+        const words = msg.text.split(' ');
+        const lines = [];
+        let current = '';
+        let isFirstLine = true;
+
+        for (let word of words) {
+            let limit = isFirstLine ? firstLineMaxWidth : maxTextWidth;
+            while (ctx.measureText(word).width > limit) {
+                let cut = word.length;
+                while (cut > 1 && ctx.measureText(word.slice(0, cut)).width > limit) cut--;
+                const chunk = word.slice(0, cut);
+                if (current) { lines.push(current); current = ''; isFirstLine = false; }
+                lines.push(chunk);
+                isFirstLine = false;
+                word = word.slice(cut);
+                limit = maxTextWidth;
+            }
+            const test = current ? current + ' ' + word : word;
+            if (ctx.measureText(test).width > limit && current) {
+                lines.push(current);
+                current = word;
+                isFirstLine = false;
+            } else {
+                current = test;
+            }
+        }
+        if (current) lines.push(current);
+        if (lines.length === 0) lines.push('');
+
+        entries.push({ nameColor, displayName, lines });
+    }
+    return entries;
+}
+
 function drawChat() {
-    if (chatMessages.length === 0) return;
+    const toggleRect = getChatToggleRect();
 
     ctx.save();
-    const chatInputAndMargin = 60;
-    const chatBoxPadding = 10;
-    const lineHeight = 25;
-    const maxChatBoxHeight = (MAX_MESSAGES * lineHeight) + (chatBoxPadding * 2);
-    const chatBoxHeight = (chatMessages.length * lineHeight) + (chatBoxPadding * 2);
-    const chatBoxWidth = 550;
-    const chatBoxX = 15;
-    const chatBoxY = canvas.height - chatInputAndMargin - chatBoxHeight;
+    ctx.fillStyle = 'rgba(20, 20, 20, 0.8)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(toggleRect.x, toggleRect.y, toggleRect.width, toggleRect.height, [6]);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#cccccc';
+    ctx.font = '11px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(isChatVisible ? 'Hide chat' : 'Show chat', toggleRect.x + toggleRect.width / 2, toggleRect.y + toggleRect.height / 2);
+    ctx.restore();
 
-    // Fundo com gradiente e sombra
-    const gradient = ctx.createLinearGradient(0, chatBoxY, 0, chatBoxY + chatBoxHeight);
+    if (!isChatVisible || chatMessages.length === 0) return;
+
+    const entries = buildWrappedChatEntries();
+    const visualLines = [];
+    for (const entry of entries) {
+        entry.lines.forEach((lineText, idx) => {
+            visualLines.push({
+                text: lineText,
+                nameColor: entry.nameColor,
+                displayName: entry.displayName,
+                isFirst: idx === 0
+            });
+        });
+    }
+
+    const linesToShow = visualLines.slice(-CHAT_MAX_VISIBLE_LINES);
+    const boxHeight = (linesToShow.length * CHAT_LINE_HEIGHT) + (CHAT_PADDING * 2);
+    const chatBoxX = 15;
+    const chatBoxY = toggleRect.y - CHAT_GAP - boxHeight;
+
+    ctx.save();
+    const gradient = ctx.createLinearGradient(0, chatBoxY, 0, chatBoxY + boxHeight);
     gradient.addColorStop(0, 'rgba(20, 20, 20, 0.8)');
     gradient.addColorStop(1, 'rgba(5, 5, 5, 0.8)');
     ctx.fillStyle = gradient;
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
     ctx.lineWidth = 1;
-    ctx.shadowColor = 'rgba(0,0,0,0.4)';
-    ctx.shadowBlur = 8;
     ctx.beginPath();
-    ctx.roundRect(chatBoxX, chatBoxY, chatBoxWidth, chatBoxHeight, [8]);
+    ctx.roundRect(chatBoxX, chatBoxY, CHAT_WIDTH, boxHeight, [8]);
     ctx.fill();
     ctx.stroke();
+    ctx.restore();
 
-    ctx.restore(); // Resetar sombra para o texto
     ctx.save();
-
-    ctx.font = '18px Arial';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.beginPath();
-    ctx.rect(chatBoxX, chatBoxY, chatBoxWidth, chatBoxHeight);
-    ctx.clip(); // Impede que o texto saia da caixa
+    ctx.rect(chatBoxX, chatBoxY, CHAT_WIDTH, boxHeight);
+    ctx.clip();
 
-    chatMessages.forEach((msg, index) => {
-        const messageY = chatBoxY + chatBoxPadding + (index * lineHeight);
-        const messageX = chatBoxX + chatBoxPadding;
-
-        // Desenha o nome
- ctx.font = 'bold 18px Arial';
-const isDevMsg = DEV_USERNAMES.includes(msg.name);
-const isArtistMsg = ARTIST_USERNAMES.includes(msg.name);
-ctx.fillStyle = msg.name === 'Server' ? (msg.color || '#FFD700')
-    : isDevMsg ? '#FF6600'
-    : isArtistMsg ? '#FF69B4'
-    : (msg.isZombie ? '#2ecc71' : '#3498db');
-const displayName = isDevMsg ? '⚙️ ' + msg.name
-    : isArtistMsg ? '🎨 ' + msg.name
-    : msg.name;
-ctx.fillText(displayName + ':', messageX, messageY);
-
-        // Desenha a mensagem
-        ctx.font = '18px Arial';
+    linesToShow.forEach((line, index) => {
+        const y = chatBoxY + CHAT_PADDING + (index * CHAT_LINE_HEIGHT);
+        let x = chatBoxX + CHAT_PADDING;
+        if (line.isFirst) {
+            ctx.font = 'bold 12px Arial';
+            ctx.fillStyle = line.nameColor;
+            ctx.fillText(line.displayName + ': ', x, y);
+            x += ctx.measureText(line.displayName + ': ').width;
+        }
+        ctx.font = '12px Arial';
         ctx.fillStyle = '#f0f0f0';
-        const nameWidth = ctx.measureText(displayName + ': ').width;
-        ctx.fillText(msg.text, messageX + nameWidth, messageY);
+        ctx.fillText(line.text, x, y);
     });
     ctx.restore();
 }
