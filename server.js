@@ -115,6 +115,93 @@ function findPlayerByNumericId(numericId) {
 function handleChatCommand(socket, player, raw) {
     if (!rateLimit(socket, 'chatCommand', 10, 10000)) return;
 
+    if (/^\/cmd list\b/i.test(raw)) {
+        if (!player.isDev) {
+            sendCommandReply(socket, 'You do not have permission to use this command.');
+            return;
+        }
+
+        const match = raw.match(/^\/cmd list (on|off)$/i);
+        if (!match) {
+            sendCommandReply(socket, 'Usage: /cmd list on or /cmd list off');
+            return;
+        }
+
+        const enabled = match[1].toLowerCase() === 'on';
+        socket.emit('commandListState', {
+            enabled,
+            commands: [
+                '/iv on P:<id>',
+                '/iv off P:<id>',
+                '/ids',
+                '/guest on',
+                '/guest off',
+                '/cmd list on',
+                '/cmd list off'
+            ]
+        });
+        sendCommandReply(socket, enabled ? 'Command list enabled.' : 'Command list disabled.');
+        return;
+    }
+
+    if (/^\/guest\b/i.test(raw)) {
+        if (!player.isDev) {
+            sendCommandReply(socket, 'You do not have permission to use this command.');
+            return;
+        }
+
+        const match = raw.match(/^\/guest (on|off)$/i);
+        if (!match) {
+            sendCommandReply(socket, 'Usage: /guest on or /guest off');
+            return;
+        }
+
+        const mode = match[1].toLowerCase();
+        if (mode === 'on') {
+            if (socket.isGuest) {
+                sendCommandReply(socket, 'Guest mode is already enabled.');
+                return;
+            }
+
+            const guestName = generateGuestName();
+            socket.accountUsername = socket.username;
+            socket.isGuest = true;
+            socket.guestChatAllowed = true;
+            socket.username = guestName;
+            guestSessions.set(socket.id, guestName);
+
+            const guestPlayer = gameState.players[socket.id];
+            if (guestPlayer) guestPlayer.name = guestName;
+
+            if (socket.accountUsername && sockets[socket.accountUsername] === socket.id) {
+                delete sockets[socket.accountUsername];
+            }
+            sockets[guestName] = socket.id;
+            sendCommandReply(socket, `Guest mode enabled as ${guestName}.`);
+            return;
+        }
+
+        if (socket.isGuest && socket.accountUsername) {
+            const accountUsername = socket.accountUsername;
+            const guestName = socket.username;
+            socket.isGuest = false;
+            socket.guestChatAllowed = false;
+            socket.username = accountUsername;
+            guestSessions.delete(socket.id);
+
+            const guestPlayer = gameState.players[socket.id];
+            if (guestPlayer) guestPlayer.name = accountUsername;
+
+            if (sockets[guestName]) delete sockets[guestName];
+            sockets[accountUsername] = socket.id;
+            sendCommandReply(socket, `Guest mode disabled. Back to ${accountUsername}.`);
+            return;
+        }
+
+        sendCommandReply(socket, 'Guest mode is not enabled.');
+        return;
+    }
+
     if (/^\/iv\b/i.test(raw)) {
         if (!player.isDev) {
             sendCommandReply(socket, 'You do not have permission to use this command.');
@@ -2013,7 +2100,9 @@ if (oldSocketId && oldSocketId !== socket.id) {
     socket.on("guestLogin", () => {
         if (!rateLimit(socket, 'guestLogin', 5, 60000)) return;
         const guestName = generateGuestName();
+        socket.accountUsername = null;
         socket.isGuest = true;
+        socket.guestChatAllowed = false;
         socket.username = guestName;
         guestSessions.set(socket.id, guestName);
         socket.emit('guestLoginSuccess', {
