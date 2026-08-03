@@ -682,6 +682,44 @@ function wrapTextGeneric(ctx, text, maxWidth) {
     return lines.length ? lines : [''];
 }
 
+// Desenha o badge de admin: hexágono azul/roxo com coroa branca, estilo Discord
+function drawAdminBadge(x, y, size = 14) {
+    ctx.save();
+    ctx.translate(x, y);
+
+    // Hexágono de fundo (roxo/azul "blurple")
+    ctx.fillStyle = '#5865F2';
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i - Math.PI / 2; // ponta pra cima
+        const px = Math.cos(angle) * size;
+        const py = Math.sin(angle) * size;
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Coroa branca (3 picos)
+    ctx.fillStyle = '#ffffff';
+    const s = size * 0.55; // escala da coroa relativa ao hexágono
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.9, s * 0.35);          // base esquerda
+    ctx.lineTo(-s * 0.55, -s * 0.05);        // sobe até o pico esquerdo
+    ctx.lineTo(-s * 0.2, s * 0.15);          // desce pro vale
+    ctx.lineTo(0, -s * 0.75);                // pico central (mais alto)
+    ctx.lineTo(s * 0.2, s * 0.15);           // desce pro vale
+    ctx.lineTo(s * 0.55, -s * 0.05);         // sobe até o pico direito
+    ctx.lineTo(s * 0.9, s * 0.35);           // base direita
+    ctx.lineTo(s * 0.75, s * 0.55);          // canto inferior direito
+    ctx.quadraticCurveTo(s * 0.6, s * 0.65, s * 0.45, s * 0.65); // curva arredondada
+    ctx.lineTo(-s * 0.45, s * 0.65);
+    ctx.quadraticCurveTo(-s * 0.6, s * 0.65, -s * 0.75, s * 0.55); // curva arredondada
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+}
+
 function draw() {
     if (!myId || !gameState.players || !gameState.players[myId]) {
         ctx.fillStyle = 'black';
@@ -1166,13 +1204,14 @@ if (bubble) {
 
 if (isDev) {
     ctx.font = 'bold 20px Arial';
-    const fullName = '⚙️ ' + player.name;
     ctx.textAlign = 'center';
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 5;
-    ctx.strokeText(fullName, nameX, nameY);
+    ctx.strokeText(player.name, nameX, nameY);
     ctx.fillStyle = '#FFD700';
-    ctx.fillText(fullName, nameX, nameY);
+    ctx.fillText(player.name, nameX, nameY);
+    const nameWidth = ctx.measureText(player.name).width;
+    drawAdminBadge(nameX - nameWidth / 2 - 12, nameY - 6, 9);
 
 } else if (isArtist) {
     ctx.font = 'bold 20px Arial';
@@ -1620,9 +1659,7 @@ function buildWrappedChatEntries() {
             : isDevMsg ? '#FF6600'
             : isArtistMsg ? '#FF69B4'
             : (msg.isZombie ? '#ff4d4d' : '#3498db');
-        const displayName = isDevMsg ? '⚙️ ' + msg.name
-            : isArtistMsg ? '🎨 ' + msg.name
-            : msg.name;
+            const displayName = msg.name;
 
         ctx.font = 'bold 12px Arial';
         const prefixWidth = ctx.measureText(displayName + ': ').width;
@@ -1725,15 +1762,19 @@ function drawChat() {
     linesToShow.forEach((line, index) => {
         const y = chatBoxY + CHAT_PADDING + (index * CHAT_LINE_HEIGHT);
         let x = chatBoxX + CHAT_PADDING;
-        if (line.isFirst) {
-            ctx.font = 'bold 12px Arial';
-            ctx.fillStyle = line.nameColor;
-            ctx.fillText(line.displayName + ': ', x, y);
-            x += ctx.measureText(line.displayName + ': ').width;
-        }
-        ctx.font = '12px Arial';
-        ctx.fillStyle = '#f0f0f0';
-        ctx.fillText(line.text, x, y);
+if (line.isFirst) {
+    if (DEV_USERNAMES.includes(line.displayName)) {
+        drawAdminBadge(x + 6, y + 8, 6);
+        x += 14;
+    }
+        ctx.font = 'bold 12px Arial';
+        ctx.fillStyle = line.nameColor;
+        ctx.fillText(line.displayName + ': ', x, y);
+        x += ctx.measureText(line.displayName + ': ').width;
+            }
+            ctx.font = '12px Arial';
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillText(line.text, x, y);
     });
     ctx.restore();
 }
@@ -1791,7 +1832,7 @@ function drawLeaderboard() {
         const isArtist = player.isArtist;
         const iAmMod = me && me.isDev;
         const baseName = (showPlayerIds && iAmMod && player.numericId !== undefined) ? `${player.name}#${player.numericId}` : player.name;
-        const displayName = isDev ? '⚙️ ' + baseName : isArtist ? '🎨 ' + baseName : baseName;
+        const displayName = baseName;
         let name = displayName;
         while (ctx.measureText(name).width > 110 && name.length > 3) {
             name = name.slice(0, -1);
@@ -1800,7 +1841,8 @@ function drawLeaderboard() {
 
         ctx.fillStyle = isMe ? '#f4c542' : (isDev ? '#ff8a3d' : isArtist ? '#c97cff' : '#f2f2f2');
         ctx.fillText(name, boardX + 32, rowY + rowHeight / 2);
-
+        if (isDev) drawAdminBadge(boardX + 24, rowY + rowHeight / 2, 6);
+        
         ctx.textAlign = 'right';
         ctx.fillStyle = '#ffd24d';
         ctx.fillText(`${Math.floor(player.gems)}`, boardX + boardWidth - 10, rowY + rowHeight / 2);
@@ -2377,6 +2419,7 @@ function getFunctionsTabRect() {
         height: 60
     };
 }
+
 
 function getItemsTabRect() {
     const mX = (canvas.width - 1500) / 2,
