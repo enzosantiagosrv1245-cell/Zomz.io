@@ -30,7 +30,13 @@ app.use((req, res, next) => {
     next();
 });
 app.use(express.json({ limit: '16kb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.js')) {
+            res.setHeader('Cache-Control', 'no-cache');
+        }
+    }
+}));
 
 const USERS_FILE = path.join(__dirname, "users.json");
 const MESSAGES_FILE = path.join(__dirname, "messages.json");
